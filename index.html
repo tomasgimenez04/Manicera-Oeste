@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caja Distribuidora</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="logic.js" defer></script>
+</head>
+<body>
+  <div class="app-wrapper">
+    <header class="app-header">
+      <h1>Caja Distribuidora</h1>
+      <span class="fecha" id="fecha-hoy"></span>
+    </header>
+
+    <nav class="nav">
+      <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
+      <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
+      <button class="nav-btn" type="button" data-section="balance">Balance</button>
+      <button class="nav-btn" type="button" data-section="stock">Stock</button>
+    </nav>
+
+    <section id="inicio" class="section active">
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-label">Ingresos hoy</div>
+          <div class="stat-value green" id="stat-ingresos">$0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Egresos hoy</div>
+          <div class="stat-value red" id="stat-egresos">$0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Balance hoy</div>
+          <div class="stat-value blue" id="stat-balance">$0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Últimos movimientos</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Producto</th>
+              <th>Kg</th>
+              <th>Monto</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-inicio">
+            <tr>
+              <td colspan="5" class="empty">Aún no hay movimientos registrados.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="registrar" class="section">
+      <div class="card">
+        <div class="card-title card-title--venta">Registrar venta (ingreso)</div>
+
+        <div class="form-row cols-3">
+          <div class="form-group">
+            <label for="v-producto">Producto</label>
+            <select id="v-producto">
+              <option value="Maní crudo">Maní crudo</option>
+              <option value="Maní tostado">Maní tostado</option>
+              <option value="Maní salado">Maní salado</option>
+              <option value="Pasta de maní">Pasta de maní</option>
+              <option value="Maní confitado">Maní confitado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="v-kg">Cantidad (kg)</label>
+            <input type="number" id="v-kg" placeholder="0.0" min="0" step="0.5">
+          </div>
+          <div class="form-group">
+            <label for="v-monto">Monto ($)</label>
+            <input type="number" id="v-monto" placeholder="0" min="0">
+          </div>
+        </div>
+
+        <div class="form-row cols-1">
+          <div class="form-group">
+            <label for="v-obs">Observaciones (opcional)</label>
+            <input type="text" id="v-obs" placeholder="Ej: cliente mayorista, pago en efectivo...">
+          </div>
+        </div>
+
+        <button class="btn btn-full btn-venta" type="button" data-register="venta">
+          Registrar venta
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title card-title--compra">Registrar compra / egreso</div>
+
+        <div class="form-row cols-3">
+          <div class="form-group">
+            <label for="c-producto">Producto</label>
+            <select id="c-producto">
+              <option value="Maní crudo">Maní crudo</option>
+              <option value="Maní tostado">Maní tostado</option>
+              <option value="Maní salado">Maní salado</option>
+              <option value="Pasta de maní">Pasta de maní</option>
+              <option value="Maní confitado">Maní confitado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="c-kg">Cantidad (kg)</label>
+            <input type="number" id="c-kg" placeholder="0.0" min="0" step="0.5">
+          </div>
+          <div class="form-group">
+            <label for="c-monto">Monto ($)</label>
+            <input type="number" id="c-monto" placeholder="0" min="0">
+          </div>
+        </div>
+
+        <div class="form-row cols-1">
+          <div class="form-group">
+            <label for="c-obs">Observaciones (opcional)</label>
+            <input type="text" id="c-obs" placeholder="Ej: proveedor Córdoba, pago a cuenta...">
+          </div>
+        </div>
+
+        <button class="btn btn-full btn-compra" type="button" data-register="compra">
+          Registrar compra
+        </button>
+      </div>
+    </section>
+
+    <section id="balance" class="section">
+      <div class="card">
+        <div class="card-title">Período</div>
+        <div class="filter-row">
+          <span class="filter-label">Ver:</span>
+          <button class="filter-btn active" type="button" data-filter="dia">Hoy</button>
+          <button class="filter-btn" type="button" data-filter="semana">Esta semana</button>
+          <button class="filter-btn" type="button" data-filter="mes">Este mes</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Total ingresos</div>
+            <div class="stat-value green" id="b-ingresos">$0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Total egresos</div>
+            <div class="stat-value red" id="b-egresos">$0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Movimientos</div>
+            <div class="stat-value" id="b-count">0</div>
+          </div>
+        </div>
+
+        <div class="balance-box">
+          <span class="bl-label">Balance del período:</span>
+          <span class="bl-value positivo" id="b-total">$0</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Detalle de movimientos</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Tipo</th>
+              <th>Producto</th>
+              <th>Kg</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-balance">
+            <tr>
+              <td colspan="6" class="empty">Sin movimientos en este período.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="stock" class="section">
+      <div class="card">
+        <div class="card-title">Stock actual (en kilos)</div>
+        <div id="stock-lista">
+          <p class="empty">El stock se calcula automáticamente a partir de las compras y ventas registradas.</p>
+        </div>
+      </div>
+
+      <p class="stock-note">
+        * Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso en rojo aparece cuando un producto tiene menos de 5 kg.
+      </p>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</body>
+</html>
