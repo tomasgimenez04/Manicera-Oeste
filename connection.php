@@ -1,16 +1,16 @@
 <?php
 
 // ─────────────────────────────────────────────
-// conexion.php
+// connection.php
 // Establece la conexión con la base de datos.
 // Este archivo no hace nada solo — otros archivos
-// lo incluyen con: include 'conexion.php';
+// lo incluyen con: include 'connection .php';
 // ─────────────────────────────────────────────
 
 $host     = "localhost";
 $usuario  = "root";       // usuario por defecto de XAMPP
 $password = "";           // contraseña vacía por defecto en XAMPP
-$base     = "manicera oeste"; // nombre de la base de datos 
+$base     = "manicera_oeste"; // nombre de la base de datos 
 
 $conn = new mysqli($host, $usuario, $password, $base);
 
