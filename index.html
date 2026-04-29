@@ -19,8 +19,12 @@
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
       <button class="nav-btn" type="button" data-section="stock">Stock</button>
+      <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
 
+    <!-- ═══════════════════════════════════════
+         INICIO
+    ═══════════════════════════════════════ -->
     <section id="inicio" class="section active">
       <div class="stats-grid">
         <div class="stat">
@@ -58,6 +62,9 @@
       </div>
     </section>
 
+    <!-- ═══════════════════════════════════════
+         REGISTRAR
+    ═══════════════════════════════════════ -->
     <section id="registrar" class="section">
       <div class="card">
         <div class="card-title card-title--venta">Registrar venta (ingreso)</div>
@@ -65,13 +72,7 @@
         <div class="form-row cols-3">
           <div class="form-group">
             <label for="v-producto">Producto</label>
-            <select id="v-producto">
-              <option value="Maní crudo">Maní crudo</option>
-              <option value="Maní tostado">Maní tostado</option>
-              <option value="Maní salado">Maní salado</option>
-              <option value="Pasta de maní">Pasta de maní</option>
-              <option value="Maní confitado">Maní confitado</option>
-            </select>
+            <select id="v-producto"></select>
           </div>
           <div class="form-group">
             <label for="v-kg">Cantidad (kg)</label>
@@ -101,13 +102,7 @@
         <div class="form-row cols-3">
           <div class="form-group">
             <label for="c-producto">Producto</label>
-            <select id="c-producto">
-              <option value="Maní crudo">Maní crudo</option>
-              <option value="Maní tostado">Maní tostado</option>
-              <option value="Maní salado">Maní salado</option>
-              <option value="Pasta de maní">Pasta de maní</option>
-              <option value="Maní confitado">Maní confitado</option>
-            </select>
+            <select id="c-producto"></select>
           </div>
           <div class="form-group">
             <label for="c-kg">Cantidad (kg)</label>
@@ -132,6 +127,9 @@
       </div>
     </section>
 
+    <!-- ═══════════════════════════════════════
+         BALANCE
+    ═══════════════════════════════════════ -->
     <section id="balance" class="section">
       <div class="card">
         <div class="card-title">Período</div>
@@ -185,6 +183,9 @@
       </div>
     </section>
 
+    <!-- ═══════════════════════════════════════
+         STOCK
+    ═══════════════════════════════════════ -->
     <section id="stock" class="section">
       <div class="card">
         <div class="card-title">Stock actual (en kilos)</div>
@@ -197,6 +198,34 @@
         * Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso en rojo aparece cuando un producto tiene menos de 5 kg.
       </p>
     </section>
+
+    <!-- ═══════════════════════════════════════
+         PRODUCTOS
+    ═══════════════════════════════════════ -->
+    <section id="productos" class="section">
+
+      <div class="card">
+        <div class="card-title">Agregar producto</div>
+        <div class="form-row cols-1">
+          <div class="form-group">
+            <label for="nuevo-producto">Nombre del producto</label>
+            <input type="text" id="nuevo-producto" placeholder="Ej: Maní hervido">
+          </div>
+        </div>
+        <button class="btn btn-full btn-venta" type="button" id="btn-agregar-producto">
+          Agregar producto
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Productos activos</div>
+        <div id="productos-lista">
+          <p class="empty">Cargando productos...</p>
+        </div>
+      </div>
+
+    </section>
+
   </div>
 
   <div class="toast" id="toast"></div>

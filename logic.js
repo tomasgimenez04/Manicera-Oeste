@@ -5,14 +5,14 @@
 // ─────────────────────────────────────────────
 
 const API = {
-    productos:    'products.php',
-    movimientos:  'movements.php'
+    productos:   'productos.php',
+    movimientos: 'movimientos.php',
+    stock:       'stock.php'
 };
 
 // ─────────────────────────────────────────────
 // Estado global
 // ─────────────────────────────────────────────
-let movimientos  = [];
 let productos    = [];
 let filtroActual = 'dia';
 
@@ -46,6 +46,43 @@ function fmt(n) {
 }
 
 // ─────────────────────────────────────────────
+// EVENT LISTENERS — se conectan al cargar la página
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Navegación
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const seccion = btn.dataset.section;
+            showSection(seccion, btn);
+        });
+    });
+
+    // Filtros de balance
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filtro = btn.dataset.filter;
+            setFiltro(filtro, btn);
+        });
+    });
+
+    // Botones de registrar venta/compra
+    document.querySelectorAll('[data-register]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tipo = btn.dataset.register;
+            registrar(tipo);
+        });
+    });
+
+    // Botón agregar producto
+    document.getElementById('btn-agregar-producto').addEventListener('click', agregarProducto);
+
+    // Cargar datos iniciales
+    cargarInicio();
+    cargarProductosEnSelects();
+});
+
+// ─────────────────────────────────────────────
 // Navegación entre secciones
 // ─────────────────────────────────────────────
 function showSection(id, btn) {
@@ -66,8 +103,8 @@ function showSection(id, btn) {
 // ─────────────────────────────────────────────
 async function cargarProductosEnSelects() {
     try {
-        const res  = await fetch(API.productos);
-        productos  = await res.json();
+        const res = await fetch(API.productos);
+        productos = await res.json();
 
         ['v-producto', 'c-producto'].forEach(id => {
             const select = document.getElementById(id);
@@ -86,7 +123,7 @@ async function cargarProductosEnSelects() {
 // REGISTRAR movimiento (venta o compra)
 // ─────────────────────────────────────────────
 async function registrar(tipo) {
-    const p      = tipo === 'venta' ? 'v' : 'c';
+    const p           = tipo === 'venta' ? 'v' : 'c';
     const producto_id = parseInt(document.getElementById(p + '-producto').value);
     const kg          = parseFloat(document.getElementById(p + '-kg').value)    || 0;
     const monto       = parseFloat(document.getElementById(p + '-monto').value) || 0;
@@ -111,7 +148,6 @@ async function registrar(tipo) {
             return;
         }
 
-        // Limpiar formulario
         document.getElementById(p + '-kg').value    = '';
         document.getElementById(p + '-monto').value = '';
         document.getElementById(p + '-obs').value   = '';
@@ -131,8 +167,8 @@ async function registrar(tipo) {
 // ─────────────────────────────────────────────
 async function cargarInicio() {
     try {
-        const res  = await fetch(API.movimientos + '?filtro=dia');
-        const mov  = await res.json();
+        const res = await fetch(API.movimientos + '?filtro=dia');
+        const mov = await res.json();
 
         const ing = mov.filter(m => m.tipo === 'venta') .reduce((s, m) => s + m.monto, 0);
         const egr = mov.filter(m => m.tipo === 'compra').reduce((s, m) => s + m.monto, 0);
@@ -141,9 +177,9 @@ async function cargarInicio() {
         document.getElementById('stat-ingresos').textContent = fmt(ing);
         document.getElementById('stat-egresos').textContent  = fmt(egr);
 
-        const balEl = document.getElementById('stat-balance');
-        balEl.textContent  = fmt(bal);
-        balEl.style.color  = bal >= 0 ? 'var(--blue)' : 'var(--red)';
+        const balEl       = document.getElementById('stat-balance');
+        balEl.textContent = fmt(bal);
+        balEl.style.color = bal >= 0 ? 'var(--blue)' : 'var(--red)';
 
         const tbody  = document.getElementById('tabla-inicio');
         const recien = mov.slice(0, 10);
@@ -172,10 +208,10 @@ async function cargarInicio() {
 // ─────────────────────────────────────────────
 // BALANCE — con filtro dia/semana/mes
 // ─────────────────────────────────────────────
-function setFiltro(f, el) {
-    filtroActual = f;
+function setFiltro(filtro, btn) {
+    filtroActual = filtro;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
+    btn.classList.add('active');
     cargarBalance();
 }
 
@@ -192,7 +228,7 @@ async function cargarBalance() {
         document.getElementById('b-egresos').textContent  = fmt(egr);
         document.getElementById('b-count').textContent    = mov.length;
 
-        const el   = document.getElementById('b-total');
+        const el       = document.getElementById('b-total');
         el.textContent = (bal >= 0 ? '+' : '') + fmt(bal);
         el.className   = 'bl-value ' + (bal >= 0 ? 'positivo' : 'negativo');
 
@@ -225,7 +261,7 @@ async function cargarBalance() {
 // ─────────────────────────────────────────────
 async function cargarStock() {
     try {
-        const res   = await fetch('stock.php');
+        const res   = await fetch(API.stock);
         const stock = await res.json();
 
         const lista = document.getElementById('stock-lista');
@@ -257,8 +293,8 @@ async function cargarStock() {
 // ─────────────────────────────────────────────
 async function cargarProductos() {
     try {
-        const res  = await fetch(API.productos);
-        productos  = await res.json();
+        const res = await fetch(API.productos);
+        productos = await res.json();
 
         const lista = document.getElementById('productos-lista');
 
@@ -271,10 +307,17 @@ async function cargarProductos() {
             <div class="stock-row">
                 <span class="stock-nombre">${p.nombre}</span>
                 <button class="btn btn-outline" style="font-size:12px; padding: 4px 10px;"
-                    onclick="eliminarProducto(${p.id}, '${p.nombre}')">
+                    data-eliminar-id="${p.id}" data-eliminar-nombre="${p.nombre}">
                     Eliminar
                 </button>
             </div>`).join('');
+
+        // Agregar listeners a los botones de eliminar recién creados
+        document.querySelectorAll('[data-eliminar-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                eliminarProducto(btn.dataset.eliminarId, btn.dataset.eliminarNombre);
+            });
+        });
 
     } catch (err) {
         showToast('Error al cargar productos.', 'error');
@@ -320,7 +363,7 @@ async function eliminarProducto(id, nombre) {
         const res  = await fetch(API.productos, {
             method:  'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ id })
+            body:    JSON.stringify({ id: parseInt(id) })
         });
 
         const data = await res.json();
@@ -337,9 +380,3 @@ async function eliminarProducto(id, nombre) {
         showToast('Error al eliminar producto.', 'error');
     }
 }
-
-// ─────────────────────────────────────────────
-// Init — cargar la pantalla de inicio al abrir
-// ─────────────────────────────────────────────
-cargarInicio();
-cargarProductosEnSelects();
