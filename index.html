@@ -22,27 +22,24 @@
       <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
 
-    <!-- ═══════════════════════════════════════
-         INICIO
-    ═══════════════════════════════════════ -->
     <section id="inicio" class="section active">
       <div class="stats-grid">
-        <div class="stat">
+        <article class="stat">
           <div class="stat-label">Ingresos hoy</div>
           <div class="stat-value green" id="stat-ingresos">$0</div>
-        </div>
-        <div class="stat">
+        </article>
+        <article class="stat">
           <div class="stat-label">Egresos hoy</div>
           <div class="stat-value red" id="stat-egresos">$0</div>
-        </div>
-        <div class="stat">
+        </article>
+        <article class="stat">
           <div class="stat-label">Balance hoy</div>
           <div class="stat-value blue" id="stat-balance">$0</div>
-        </div>
+        </article>
       </div>
 
-      <div class="card">
-        <div class="card-title">Últimos movimientos</div>
+      <article class="card">
+        <div class="card-title">Ultimos movimientos</div>
         <table class="data-table">
           <thead>
             <tr>
@@ -55,18 +52,15 @@
           </thead>
           <tbody id="tabla-inicio">
             <tr>
-              <td colspan="5" class="empty">Aún no hay movimientos registrados.</td>
+              <td colspan="5" class="empty">Aun no hay movimientos registrados.</td>
             </tr>
           </tbody>
         </table>
-      </div>
+      </article>
     </section>
 
-    <!-- ═══════════════════════════════════════
-         REGISTRAR
-    ═══════════════════════════════════════ -->
     <section id="registrar" class="section">
-      <div class="card">
+      <article class="card">
         <div class="card-title card-title--venta">Registrar venta (ingreso)</div>
 
         <div class="form-row cols-3">
@@ -94,9 +88,9 @@
         <button class="btn btn-full btn-venta" type="button" data-register="venta">
           Registrar venta
         </button>
-      </div>
+      </article>
 
-      <div class="card">
+      <article class="card">
         <div class="card-title card-title--compra">Registrar compra / egreso</div>
 
         <div class="form-row cols-3">
@@ -117,22 +111,19 @@
         <div class="form-row cols-1">
           <div class="form-group">
             <label for="c-obs">Observaciones (opcional)</label>
-            <input type="text" id="c-obs" placeholder="Ej: proveedor Córdoba, pago a cuenta...">
+            <input type="text" id="c-obs" placeholder="Ej: proveedor Cordoba, pago a cuenta...">
           </div>
         </div>
 
         <button class="btn btn-full btn-compra" type="button" data-register="compra">
           Registrar compra
         </button>
-      </div>
+      </article>
     </section>
 
-    <!-- ═══════════════════════════════════════
-         BALANCE
-    ═══════════════════════════════════════ -->
     <section id="balance" class="section">
-      <div class="card">
-        <div class="card-title">Período</div>
+      <article class="card">
+        <div class="card-title">Periodo</div>
         <div class="filter-row">
           <span class="filter-label">Ver:</span>
           <button class="filter-btn active" type="button" data-filter="dia">Hoy</button>
@@ -141,27 +132,27 @@
         </div>
 
         <div class="stats-grid">
-          <div class="stat">
+          <article class="stat">
             <div class="stat-label">Total ingresos</div>
             <div class="stat-value green" id="b-ingresos">$0</div>
-          </div>
-          <div class="stat">
+          </article>
+          <article class="stat">
             <div class="stat-label">Total egresos</div>
             <div class="stat-value red" id="b-egresos">$0</div>
-          </div>
-          <div class="stat">
+          </article>
+          <article class="stat">
             <div class="stat-label">Movimientos</div>
             <div class="stat-value" id="b-count">0</div>
-          </div>
+          </article>
         </div>
 
         <div class="balance-box">
-          <span class="bl-label">Balance del período:</span>
+          <span class="bl-label">Balance del periodo:</span>
           <span class="bl-value positivo" id="b-total">$0</span>
         </div>
-      </div>
+      </article>
 
-      <div class="card">
+      <article class="card">
         <div class="card-title">Detalle de movimientos</div>
         <table class="data-table">
           <thead>
@@ -176,58 +167,89 @@
           </thead>
           <tbody id="tabla-balance">
             <tr>
-              <td colspan="6" class="empty">Sin movimientos en este período.</td>
+              <td colspan="6" class="empty">Sin movimientos en este periodo.</td>
             </tr>
           </tbody>
         </table>
-      </div>
+      </article>
     </section>
 
-    <!-- ═══════════════════════════════════════
-         STOCK
-    ═══════════════════════════════════════ -->
     <section id="stock" class="section">
-      <div class="card">
+      <article class="card">
         <div class="card-title">Stock actual (en kilos)</div>
         <div id="stock-lista">
-          <p class="empty">El stock se calcula automáticamente a partir de las compras y ventas registradas.</p>
+          <p class="empty">El stock se calcula automaticamente a partir de las compras y ventas registradas.</p>
         </div>
-      </div>
+      </article>
 
       <p class="stock-note">
         * Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso en rojo aparece cuando un producto tiene menos de 5 kg.
       </p>
     </section>
 
-    <!-- ═══════════════════════════════════════
-         PRODUCTOS
-    ═══════════════════════════════════════ -->
     <section id="productos" class="section">
-
-      <div class="card">
+      <article class="card">
         <div class="card-title">Agregar producto</div>
         <div class="form-row cols-1">
           <div class="form-group">
             <label for="nuevo-producto">Nombre del producto</label>
-            <input type="text" id="nuevo-producto" placeholder="Ej: Maní hervido">
+            <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
           </div>
         </div>
         <button class="btn btn-full btn-venta" type="button" id="btn-agregar-producto">
           Agregar producto
         </button>
-      </div>
+      </article>
 
-      <div class="card">
+      <article class="card">
         <div class="card-title">Productos activos</div>
         <div id="productos-lista">
           <p class="empty">Cargando productos...</p>
         </div>
-      </div>
-
+      </article>
     </section>
-
   </div>
 
-  <div class="toast" id="toast"></div>
+  <template id="tpl-inicio-row">
+    <tr>
+      <td><span class="badge" data-field="tipo"></span></td>
+      <td data-field="producto"></td>
+      <td data-field="kg"></td>
+      <td data-field="monto"></td>
+      <td class="cell-muted" data-field="hora"></td>
+    </tr>
+  </template>
+
+  <template id="tpl-balance-row">
+    <tr>
+      <td data-field="fecha"></td>
+      <td class="cell-muted" data-field="hora"></td>
+      <td><span class="badge" data-field="tipo"></span></td>
+      <td data-field="producto"></td>
+      <td data-field="kg"></td>
+      <td data-field="monto"></td>
+    </tr>
+  </template>
+
+  <template id="tpl-stock-row">
+    <div class="stock-row">
+      <span class="stock-nombre" data-field="nombre"></span>
+      <span class="stock-kg">
+        <span data-field="cantidad"></span>
+        <span class="stock-tag is-hidden" data-field="tag">stock bajo</span>
+      </span>
+    </div>
+  </template>
+
+  <template id="tpl-producto-row">
+    <div class="stock-row stock-row--product">
+      <span class="stock-nombre" data-field="nombre"></span>
+      <button class="btn btn-outline btn-sm" type="button" data-action="eliminar">
+        Eliminar
+      </button>
+    </div>
+  </template>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
 </body>
 </html>

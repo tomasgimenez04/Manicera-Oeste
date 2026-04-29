@@ -62,6 +62,7 @@ body {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 1.5rem;
 }
@@ -250,6 +251,11 @@ body {
   color: var(--text-secondary);
 }
 
+.btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -271,6 +277,10 @@ body {
   padding: 10px 8px;
   border-bottom: 0.5px solid var(--border-light);
   color: var(--text-primary);
+}
+
+.cell-muted {
+  color: var(--text-hint);
 }
 
 .data-table tr:last-child td {
@@ -385,11 +395,18 @@ body {
   border-bottom: none;
 }
 
+.stock-row--product {
+  gap: 12px;
+}
+
 .stock-nombre {
   font-size: 14px;
 }
 
 .stock-kg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -420,6 +437,10 @@ body {
   color: var(--text-hint);
   font-size: 13px;
   padding: 2rem 0;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 .toast {

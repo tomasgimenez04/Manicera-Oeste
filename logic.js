@@ -17,18 +17,23 @@ const API = {
 let productos = [];
 let filtroActual = 'dia';
 
-const hoy = new Date();
-document.getElementById('fecha-hoy').textContent = hoy.toLocaleDateString('es-AR', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-});
+function actualizarFecha() {
+    const fechaHoy = document.getElementById('fecha-hoy');
+    const hoy = new Date();
+
+    fechaHoy.textContent = hoy.toLocaleDateString('es-AR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
 
 function showToast(msg, tipo) {
     const toast = document.getElementById('toast');
     toast.textContent = msg;
     toast.className = `toast show ${tipo}`;
+
     setTimeout(() => {
         toast.className = 'toast';
     }, 2500);
@@ -63,7 +68,128 @@ function ensureArray(data) {
     return Array.isArray(data) ? data : [];
 }
 
+function cloneTemplate(id) {
+    const template = document.getElementById(id);
+
+    if (!template) {
+        throw new Error(`No existe el template "${id}".`);
+    }
+
+    return template.content.firstElementChild.cloneNode(true);
+}
+
+function createEmptyTableRow(colspan, text) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+
+    cell.colSpan = colspan;
+    cell.className = 'empty';
+    cell.textContent = text;
+
+    row.appendChild(cell);
+    return row;
+}
+
+function createEmptyParagraph(text) {
+    const paragraph = document.createElement('p');
+    paragraph.className = 'empty';
+    paragraph.textContent = text;
+    return paragraph;
+}
+
+function replaceChildren(element, children) {
+    element.replaceChildren(...children);
+}
+
+function setBadge(element, tipo) {
+    element.classList.remove('badge-venta', 'badge-compra');
+    element.classList.add(`badge-${tipo}`);
+    element.textContent = tipo === 'venta' ? 'Venta' : 'Compra';
+}
+
+function createOption(producto) {
+    const option = document.createElement('option');
+    option.value = producto.id;
+    option.textContent = producto.nombre;
+    return option;
+}
+
+function createInicioRow(item) {
+    const row = cloneTemplate('tpl-inicio-row');
+    const tipo = row.querySelector('[data-field="tipo"]');
+    const producto = row.querySelector('[data-field="producto"]');
+    const kg = row.querySelector('[data-field="kg"]');
+    const monto = row.querySelector('[data-field="monto"]');
+    const hora = row.querySelector('[data-field="hora"]');
+
+    setBadge(tipo, item.tipo);
+    producto.textContent = item.producto;
+    kg.textContent = `${item.kg} kg`;
+    monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
+    monto.className = item.tipo === 'venta' ? 'amount-pos' : 'amount-neg';
+    hora.textContent = item.hora;
+
+    return row;
+}
+
+function createBalanceRow(item) {
+    const row = cloneTemplate('tpl-balance-row');
+    const fecha = row.querySelector('[data-field="fecha"]');
+    const hora = row.querySelector('[data-field="hora"]');
+    const tipo = row.querySelector('[data-field="tipo"]');
+    const producto = row.querySelector('[data-field="producto"]');
+    const kg = row.querySelector('[data-field="kg"]');
+    const monto = row.querySelector('[data-field="monto"]');
+
+    fecha.textContent = item.fecha;
+    hora.textContent = item.hora;
+    setBadge(tipo, item.tipo);
+    producto.textContent = item.producto;
+    kg.textContent = `${item.kg} kg`;
+    monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
+    monto.className = item.tipo === 'venta' ? 'amount-pos' : 'amount-neg';
+
+    return row;
+}
+
+function createStockRow(item) {
+    const row = cloneTemplate('tpl-stock-row');
+    const nombre = row.querySelector('[data-field="nombre"]');
+    const cantidad = row.querySelector('[data-field="cantidad"]');
+    const tag = row.querySelector('[data-field="tag"]');
+    const stock = row.querySelector('.stock-kg');
+    const alerta = Number(item.stock_kg) < 5;
+
+    nombre.textContent = item.nombre;
+    cantidad.textContent = `${Number(item.stock_kg).toFixed(1)} kg`;
+
+    if (alerta) {
+        stock.classList.add('alerta');
+        tag.classList.remove('is-hidden');
+    } else {
+        stock.classList.remove('alerta');
+        tag.classList.add('is-hidden');
+    }
+
+    return row;
+}
+
+function createProductoRow(producto) {
+    const row = cloneTemplate('tpl-producto-row');
+    const nombre = row.querySelector('[data-field="nombre"]');
+    const button = row.querySelector('[data-action="eliminar"]');
+
+    nombre.textContent = producto.nombre;
+    button.addEventListener('click', () => {
+        eliminarProducto(producto.id, producto.nombre);
+    });
+
+    return row;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    actualizarFecha();
+
     document.querySelectorAll('.nav-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             showSection(btn.dataset.section, btn);
@@ -119,9 +245,15 @@ async function cargarProductosEnSelects() {
             const select = document.getElementById(id);
             if (!select) return;
 
-            select.innerHTML = productos.map((producto) => (
-                `<option value="${producto.id}">${producto.nombre}</option>`
-            )).join('');
+            if (!productos.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No hay productos';
+                replaceChildren(select, [option]);
+                return;
+            }
+
+            replaceChildren(select, productos.map(createOption));
         });
     } catch (error) {
         console.error(error);
@@ -135,6 +267,11 @@ async function registrar(tipo) {
     const kg = parseFloat(document.getElementById(`${prefix}-kg`).value) || 0;
     const monto = parseFloat(document.getElementById(`${prefix}-monto`).value) || 0;
     const observacion = document.getElementById(`${prefix}-obs`).value.trim();
+
+    if (!producto_id) {
+        showToast('Selecciona un producto.', 'error');
+        return;
+    }
 
     if (kg <= 0 || monto <= 0) {
         showToast('Completa cantidad y monto.', 'error');
@@ -180,27 +317,17 @@ async function cargarInicio() {
 
         const balanceEl = document.getElementById('stat-balance');
         balanceEl.textContent = fmt(balance);
-        balanceEl.style.color = balance >= 0 ? 'var(--blue)' : 'var(--red)';
+        balanceEl.className = `stat-value ${balance >= 0 ? 'blue' : 'red'}`;
 
         const tbody = document.getElementById('tabla-inicio');
         const recientes = mov.slice(0, 10);
 
         if (!recientes.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty">Aun no hay movimientos hoy.</td></tr>';
+            replaceChildren(tbody, [createEmptyTableRow(5, 'Aun no hay movimientos hoy.')]);
             return;
         }
 
-        tbody.innerHTML = recientes.map((item) => `
-            <tr>
-                <td><span class="badge badge-${item.tipo}">${item.tipo === 'venta' ? 'Venta' : 'Compra'}</span></td>
-                <td>${item.producto}</td>
-                <td>${item.kg} kg</td>
-                <td class="${item.tipo === 'venta' ? 'amount-pos' : 'amount-neg'}">
-                    ${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}
-                </td>
-                <td style="color: var(--text-hint)">${item.hora}</td>
-            </tr>
-        `).join('');
+        replaceChildren(tbody, recientes.map(createInicioRow));
     } catch (error) {
         console.error(error);
         showToast('Error al cargar movimientos.', 'error');
@@ -235,22 +362,11 @@ async function cargarBalance() {
 
         const tbody = document.getElementById('tabla-balance');
         if (!mov.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin movimientos en este periodo.</td></tr>';
+            replaceChildren(tbody, [createEmptyTableRow(6, 'Sin movimientos en este periodo.')]);
             return;
         }
 
-        tbody.innerHTML = mov.map((item) => `
-            <tr>
-                <td>${item.fecha}</td>
-                <td style="color: var(--text-hint)">${item.hora}</td>
-                <td><span class="badge badge-${item.tipo}">${item.tipo === 'venta' ? 'Venta' : 'Compra'}</span></td>
-                <td>${item.producto}</td>
-                <td>${item.kg} kg</td>
-                <td class="${item.tipo === 'venta' ? 'amount-pos' : 'amount-neg'}">
-                    ${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}
-                </td>
-            </tr>
-        `).join('');
+        replaceChildren(tbody, mov.map(createBalanceRow));
     } catch (error) {
         console.error(error);
         showToast('Error al cargar balance.', 'error');
@@ -263,22 +379,11 @@ async function cargarStock() {
         const lista = document.getElementById('stock-lista');
 
         if (!stock.length) {
-            lista.innerHTML = '<p class="empty">Sin datos de stock aun.</p>';
+            replaceChildren(lista, [createEmptyParagraph('Sin datos de stock aun.')]);
             return;
         }
 
-        lista.innerHTML = stock.map((item) => {
-            const alerta = Number(item.stock_kg) < 5;
-            return `
-                <div class="stock-row">
-                    <span class="stock-nombre">${item.nombre}</span>
-                    <span class="stock-kg ${alerta ? 'alerta' : ''}">
-                        ${Number(item.stock_kg).toFixed(1)} kg
-                        ${alerta ? '<span class="stock-tag">stock bajo</span>' : ''}
-                    </span>
-                </div>
-            `;
-        }).join('');
+        replaceChildren(lista, stock.map(createStockRow));
     } catch (error) {
         console.error(error);
         showToast('Error al cargar stock.', 'error');
@@ -291,29 +396,11 @@ async function cargarProductos() {
         const lista = document.getElementById('productos-lista');
 
         if (!productos.length) {
-            lista.innerHTML = '<p class="empty">No hay productos cargados.</p>';
+            replaceChildren(lista, [createEmptyParagraph('No hay productos cargados.')]);
             return;
         }
 
-        lista.innerHTML = productos.map((producto) => `
-            <div class="stock-row">
-                <span class="stock-nombre">${producto.nombre}</span>
-                <button
-                    class="btn btn-outline"
-                    style="font-size:12px; padding: 4px 10px;"
-                    data-eliminar-id="${producto.id}"
-                    data-eliminar-nombre="${producto.nombre}"
-                >
-                    Eliminar
-                </button>
-            </div>
-        `).join('');
-
-        document.querySelectorAll('[data-eliminar-id]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                eliminarProducto(btn.dataset.eliminarId, btn.dataset.eliminarNombre);
-            });
-        });
+        replaceChildren(lista, productos.map(createProductoRow));
     } catch (error) {
         console.error(error);
         showToast('Error al cargar productos.', 'error');
