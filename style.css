@@ -172,6 +172,10 @@ section {
   grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.35fr);
 }
 
+#productos .dashboard-grid--sidebar {
+  align-items: stretch;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -205,6 +209,12 @@ section {
 
 .form-card .btn {
   width: 100%;
+}
+
+.form-card--split {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 #registrar .form-card {
@@ -305,10 +315,27 @@ section {
   line-height: 1.5;
 }
 
-.subpanel-block {
-  margin-top: 26px;
-  padding-top: 22px;
-  border-top: 1px solid var(--border);
+.subpanel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.subpanel-card .panel-heading {
+  margin-bottom: 0;
+}
+
+.subpanel-card .form-grid {
+  margin-bottom: 0;
+}
+
+.subpanel-card .btn {
+  margin-top: auto;
 }
 
 .filter-row {
@@ -683,6 +710,10 @@ textarea:focus {
   .dashboard-grid--two,
   .dashboard-grid--sidebar {
     grid-template-columns: 1fr;
+  }
+
+  .form-card--split {
+    grid-template-rows: auto auto;
   }
 }
 

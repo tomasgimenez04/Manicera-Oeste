@@ -244,24 +244,26 @@
 
     <section id="productos" class="section">
       <div class="dashboard-grid dashboard-grid--sidebar">
-        <article class="form-card">
-          <div class="panel-heading">
-            <h2>Agregar producto</h2>
-            <p>Incorpora nuevos productos para operar ventas, compras y stock.</p>
-          </div>
-
-          <div class="form-grid form-grid--single">
-            <div class="form-group">
-              <label for="nuevo-producto">Nombre del producto</label>
-              <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
+        <article class="form-card form-card--split">
+          <div class="subpanel-card">
+            <div class="panel-heading">
+              <h2>Agregar producto</h2>
+              <p>Incorpora nuevos productos para operar ventas, compras y stock.</p>
             </div>
+
+            <div class="form-grid form-grid--single form-grid--tight">
+              <div class="form-group">
+                <label for="nuevo-producto">Nombre del producto</label>
+                <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
+              </div>
+            </div>
+
+            <button class="btn btn-primary" type="button" id="btn-agregar-producto">
+              Agregar producto
+            </button>
           </div>
 
-          <button class="btn btn-primary" type="button" id="btn-agregar-producto">
-            Agregar producto
-          </button>
-
-          <div class="subpanel-block">
+          <div class="subpanel-card">
             <div class="panel-heading panel-heading--compact">
               <h2>Buscar producto</h2>
               <p>Escribi un nombre y la lista de productos activos se filtrara automaticamente.</p>
