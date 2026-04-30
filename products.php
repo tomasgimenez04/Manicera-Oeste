@@ -15,7 +15,7 @@ if ($metodo === 'OPTIONS') {
 }
 
 if ($metodo === 'GET') {
-    $resultado = $conn->query('SELECT id, nombre FROM productos WHERE activo = 1 ORDER BY nombre ASC');
+    $resultado = $conn->query("SELECT id, nombre, COALESCE(codigo, '') AS codigo FROM productos WHERE activo = 1 ORDER BY nombre ASC");
 
     if (!$resultado) {
         http_response_code(500);
@@ -30,10 +30,17 @@ if ($metodo === 'GET') {
 if ($metodo === 'POST') {
     $body = json_decode(file_get_contents('php://input'), true);
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
+    $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
 
     if ($nombre === '') {
         http_response_code(400);
         echo json_encode(['error' => 'El nombre del producto no puede estar vacio.']);
+        exit;
+    }
+
+    if ($codigo === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'El codigo del producto es obligatorio.']);
         exit;
     }
 
@@ -51,18 +58,33 @@ if ($metodo === 'POST') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('INSERT INTO productos (nombre) VALUES (?)');
-    $stmt->bind_param('s', $nombre);
+    $stmt = $conn->prepare('SELECT id FROM productos WHERE codigo = ? AND activo = 1');
+    $stmt->bind_param('s', $codigo);
+    $stmt->execute();
+    $stmt->store_result();
+
+    if ($stmt->num_rows > 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ya existe un producto con ese codigo.']);
+        $stmt->close();
+        exit;
+    }
+
+    $stmt->close();
+
+    $stmt = $conn->prepare('INSERT INTO productos (nombre, codigo) VALUES (?, ?)');
+    $stmt->bind_param('ss', $nombre, $codigo);
 
     if ($stmt->execute()) {
         echo json_encode([
             'ok' => true,
             'id' => $conn->insert_id,
-            'nombre' => $nombre
+            'nombre' => $nombre,
+            'codigo' => $codigo
         ]);
     } else {
         http_response_code(500);
-        echo json_encode(['error' => 'No se pudo guardar el producto.']);
+        echo json_encode(['error' => 'No se pudo guardar el producto: ' . $stmt->error]);
     }
 
     $stmt->close();

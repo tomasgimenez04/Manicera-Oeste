@@ -32,17 +32,19 @@ if ($metodo === 'GET') {
 
     $sql = "
         SELECT
-            id,
-            tipo,
-            producto,
-            producto_id,
-            kg,
-            monto,
-            observacion,
-            DATE_FORMAT(fecha, '%d/%m/%Y') AS fecha,
-            DATE_FORMAT(fecha, '%H:%i') AS hora
+            v_movimientos.id,
+            v_movimientos.tipo,
+            v_movimientos.producto,
+            v_movimientos.producto_id,
+            COALESCE(productos.codigo, '') AS codigo,
+            v_movimientos.kg,
+            v_movimientos.monto,
+            v_movimientos.observacion,
+            DATE_FORMAT(v_movimientos.fecha, '%d/%m/%Y') AS fecha,
+            DATE_FORMAT(v_movimientos.fecha, '%H:%i') AS hora
         FROM v_movimientos
-        WHERE DATE(fecha) >= $desde
+        LEFT JOIN productos ON productos.id = v_movimientos.producto_id
+        WHERE DATE(v_movimientos.fecha) >= $desde
         ORDER BY v_movimientos.fecha DESC
     ";
 

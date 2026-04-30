@@ -18,7 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$resultado = $conn->query('SELECT id, nombre, stock_kg FROM v_stock ORDER BY nombre ASC');
+$resultado = $conn->query("
+    SELECT
+        v_stock.id,
+        v_stock.nombre,
+        COALESCE(productos.codigo, '') AS codigo,
+        v_stock.stock_kg
+    FROM v_stock
+    LEFT JOIN productos ON productos.id = v_stock.id
+    ORDER BY v_stock.nombre ASC
+");
 
 if (!$resultado) {
     http_response_code(500);
