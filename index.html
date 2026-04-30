@@ -8,13 +8,16 @@
   <script src="logic.js" defer></script>
 </head>
 <body>
-  <div class="app-wrapper">
+  <main class="app-container">
     <header class="app-header">
-      <h1>Caja Distribuidora</h1>
-      <span class="fecha" id="fecha-hoy"></span>
+      <div class="app-header__copy">
+        <h1>Caja Distribuidora</h1>
+        <p>Panel de control y movimientos diarios</p>
+      </div>
+      <span class="current-date" id="fecha-hoy"></span>
     </header>
 
-    <nav class="nav">
+    <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
@@ -23,192 +26,255 @@
     </nav>
 
     <section id="inicio" class="section active">
-      <div class="stats-grid">
-        <article class="stat">
-          <div class="stat-label">Ingresos hoy</div>
-          <div class="stat-value green" id="stat-ingresos">$0</div>
+      <div class="summary-grid">
+        <article class="summary-card">
+          <div class="card-top">
+            <small>Ingresos hoy</small>
+            <span class="card-icon card-icon--income">&uarr;</span>
+          </div>
+          <strong class="summary-value amount positive" id="stat-ingresos">$0</strong>
         </article>
-        <article class="stat">
-          <div class="stat-label">Egresos hoy</div>
-          <div class="stat-value red" id="stat-egresos">$0</div>
+
+        <article class="summary-card">
+          <div class="card-top">
+            <small>Egresos hoy</small>
+            <span class="card-icon card-icon--expense">&darr;</span>
+          </div>
+          <strong class="summary-value amount negative" id="stat-egresos">$0</strong>
         </article>
-        <article class="stat">
-          <div class="stat-label">Balance hoy</div>
-          <div class="stat-value blue" id="stat-balance">$0</div>
+
+        <article class="summary-card">
+          <div class="card-top">
+            <small>Balance hoy</small>
+            <span class="card-icon card-icon--balance">=</span>
+          </div>
+          <strong class="summary-value amount positive" id="stat-balance">$0</strong>
         </article>
       </div>
 
-      <article class="card">
-        <div class="card-title">Ultimos movimientos</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Producto</th>
-              <th>Kg</th>
-              <th>Monto</th>
-              <th>Hora</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-inicio">
-            <tr>
-              <td colspan="5" class="empty">Aun no hay movimientos registrados.</td>
-            </tr>
-          </tbody>
-        </table>
+      <article class="movements-card">
+        <div class="panel-heading">
+          <h2>Historial de movimientos</h2>
+          <p>Vista rapida de compras y ventas registradas durante el dia.</p>
+        </div>
+
+        <div class="table-shell">
+          <table class="movements-table">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Producto</th>
+                <th>Kg</th>
+                <th>Monto</th>
+                <th>Hora</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-inicio">
+              <tr>
+                <td colspan="5" class="empty">Aun no hay movimientos registrados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
     </section>
 
     <section id="registrar" class="section">
-      <article class="card">
-        <div class="card-title card-title--venta">Registrar venta (ingreso)</div>
+      <div class="dashboard-grid dashboard-grid--two">
+        <article class="form-card">
+          <div class="panel-heading">
+            <h2>Registrar venta</h2>
+            <p>Carga un nuevo ingreso con producto, kilos y monto total.</p>
+          </div>
 
-        <div class="form-row cols-3">
-          <div class="form-group">
-            <label for="v-producto">Producto</label>
-            <select id="v-producto"></select>
+          <div class="form-grid form-grid--triple">
+            <div class="form-group">
+              <label for="v-producto">Producto</label>
+              <select id="v-producto"></select>
+            </div>
+            <div class="form-group">
+              <label for="v-kg">Cantidad (kg)</label>
+              <input type="number" id="v-kg" placeholder="0.0" min="0" step="0.5">
+            </div>
+            <div class="form-group">
+              <label for="v-monto">Monto ($)</label>
+              <input type="number" id="v-monto" placeholder="0" min="0">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="v-kg">Cantidad (kg)</label>
-            <input type="number" id="v-kg" placeholder="0.0" min="0" step="0.5">
-          </div>
-          <div class="form-group">
-            <label for="v-monto">Monto ($)</label>
-            <input type="number" id="v-monto" placeholder="0" min="0">
-          </div>
-        </div>
 
-        <div class="form-row cols-1">
-          <div class="form-group">
-            <label for="v-obs">Observaciones (opcional)</label>
-            <input type="text" id="v-obs" placeholder="Ej: cliente mayorista, pago en efectivo...">
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="v-obs">Observaciones (opcional)</label>
+              <input type="text" id="v-obs" placeholder="Ej: cliente mayorista, pago en efectivo...">
+            </div>
           </div>
-        </div>
 
-        <button class="btn btn-full btn-venta" type="button" data-register="venta">
-          Registrar venta
-        </button>
-      </article>
+          <button class="btn btn-primary btn-success" type="button" data-register="venta">
+            Registrar venta
+          </button>
+        </article>
 
-      <article class="card">
-        <div class="card-title card-title--compra">Registrar compra / egreso</div>
-
-        <div class="form-row cols-3">
-          <div class="form-group">
-            <label for="c-producto">Producto</label>
-            <select id="c-producto"></select>
+        <article class="form-card">
+          <div class="panel-heading">
+            <h2>Registrar compra</h2>
+            <p>Guarda un nuevo egreso para actualizar caja y stock.</p>
           </div>
-          <div class="form-group">
-            <label for="c-kg">Cantidad (kg)</label>
-            <input type="number" id="c-kg" placeholder="0.0" min="0" step="0.5">
-          </div>
-          <div class="form-group">
-            <label for="c-monto">Monto ($)</label>
-            <input type="number" id="c-monto" placeholder="0" min="0">
-          </div>
-        </div>
 
-        <div class="form-row cols-1">
-          <div class="form-group">
-            <label for="c-obs">Observaciones (opcional)</label>
-            <input type="text" id="c-obs" placeholder="Ej: proveedor Cordoba, pago a cuenta...">
+          <div class="form-grid form-grid--triple">
+            <div class="form-group">
+              <label for="c-producto">Producto</label>
+              <select id="c-producto"></select>
+            </div>
+            <div class="form-group">
+              <label for="c-kg">Cantidad (kg)</label>
+              <input type="number" id="c-kg" placeholder="0.0" min="0" step="0.5">
+            </div>
+            <div class="form-group">
+              <label for="c-monto">Monto ($)</label>
+              <input type="number" id="c-monto" placeholder="0" min="0">
+            </div>
           </div>
-        </div>
 
-        <button class="btn btn-full btn-compra" type="button" data-register="compra">
-          Registrar compra
-        </button>
-      </article>
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="c-obs">Observaciones (opcional)</label>
+              <input type="text" id="c-obs" placeholder="Ej: proveedor Cordoba, pago a cuenta...">
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-danger" type="button" data-register="compra">
+            Registrar compra
+          </button>
+        </article>
+      </div>
     </section>
 
     <section id="balance" class="section">
-      <article class="card">
-        <div class="card-title">Periodo</div>
-        <div class="filter-row">
-          <span class="filter-label">Ver:</span>
-          <button class="filter-btn active" type="button" data-filter="dia">Hoy</button>
-          <button class="filter-btn" type="button" data-filter="semana">Esta semana</button>
-          <button class="filter-btn" type="button" data-filter="mes">Este mes</button>
+      <article class="panel-card">
+        <div class="panel-heading panel-heading--split">
+          <div>
+            <h2>Balance del periodo</h2>
+            <p>Consulta ingresos, egresos y cantidad de movimientos.</p>
+          </div>
+
+          <div class="filter-row">
+            <span class="filter-label">Ver:</span>
+            <button class="filter-btn active" type="button" data-filter="dia">Hoy</button>
+            <button class="filter-btn" type="button" data-filter="semana">Esta semana</button>
+            <button class="filter-btn" type="button" data-filter="mes">Este mes</button>
+          </div>
         </div>
 
-        <div class="stats-grid">
-          <article class="stat">
-            <div class="stat-label">Total ingresos</div>
-            <div class="stat-value green" id="b-ingresos">$0</div>
+        <div class="summary-grid summary-grid--compact">
+          <article class="summary-card">
+            <div class="card-top">
+              <small>Total ingresos</small>
+              <span class="card-icon card-icon--income">&uarr;</span>
+            </div>
+            <strong class="summary-value amount positive" id="b-ingresos">$0</strong>
           </article>
-          <article class="stat">
-            <div class="stat-label">Total egresos</div>
-            <div class="stat-value red" id="b-egresos">$0</div>
+
+          <article class="summary-card">
+            <div class="card-top">
+              <small>Total egresos</small>
+              <span class="card-icon card-icon--expense">&darr;</span>
+            </div>
+            <strong class="summary-value amount negative" id="b-egresos">$0</strong>
           </article>
-          <article class="stat">
-            <div class="stat-label">Movimientos</div>
-            <div class="stat-value" id="b-count">0</div>
+
+          <article class="summary-card">
+            <div class="card-top">
+              <small>Movimientos</small>
+              <span class="card-icon card-icon--balance">#</span>
+            </div>
+            <strong class="summary-value" id="b-count">0</strong>
           </article>
         </div>
 
-        <div class="balance-box">
-          <span class="bl-label">Balance del periodo:</span>
-          <span class="bl-value positivo" id="b-total">$0</span>
+        <div class="balance-strip">
+          <span>Balance del periodo</span>
+          <strong class="balance-total amount positive" id="b-total">$0</strong>
         </div>
       </article>
 
-      <article class="card">
-        <div class="card-title">Detalle de movimientos</div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Hora</th>
-              <th>Tipo</th>
-              <th>Producto</th>
-              <th>Kg</th>
-              <th>Monto</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-balance">
-            <tr>
-              <td colspan="6" class="empty">Sin movimientos en este periodo.</td>
-            </tr>
-          </tbody>
-        </table>
+      <article class="movements-card">
+        <div class="panel-heading">
+          <h2>Detalle de movimientos</h2>
+          <p>Registro completo del periodo seleccionado.</p>
+        </div>
+
+        <div class="table-shell">
+          <table class="movements-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Tipo</th>
+                <th>Producto</th>
+                <th>Kg</th>
+                <th>Monto</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-balance">
+              <tr>
+                <td colspan="6" class="empty">Sin movimientos en este periodo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
     </section>
 
     <section id="stock" class="section">
-      <article class="card">
-        <div class="card-title">Stock actual (en kilos)</div>
-        <div id="stock-lista">
-          <p class="empty">El stock se calcula automaticamente a partir de las compras y ventas registradas.</p>
+      <article class="panel-card">
+        <div class="panel-heading">
+          <h2>Stock actual</h2>
+          <p>El stock se calcula automaticamente a partir de las compras y ventas registradas.</p>
         </div>
-      </article>
 
-      <p class="stock-note">
-        * Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso en rojo aparece cuando un producto tiene menos de 5 kg.
-      </p>
+        <div id="stock-lista" class="list-surface">
+          <p class="empty">Sin datos de stock aun.</p>
+        </div>
+
+        <p class="stock-note">
+          Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso aparece cuando un producto tiene menos de 5 kg.
+        </p>
+      </article>
     </section>
 
     <section id="productos" class="section">
-      <article class="card">
-        <div class="card-title">Agregar producto</div>
-        <div class="form-row cols-1">
-          <div class="form-group">
-            <label for="nuevo-producto">Nombre del producto</label>
-            <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
+      <div class="dashboard-grid dashboard-grid--sidebar">
+        <article class="form-card">
+          <div class="panel-heading">
+            <h2>Agregar producto</h2>
+            <p>Incorpora nuevos productos para operar ventas, compras y stock.</p>
           </div>
-        </div>
-        <button class="btn btn-full btn-venta" type="button" id="btn-agregar-producto">
-          Agregar producto
-        </button>
-      </article>
 
-      <article class="card">
-        <div class="card-title">Productos activos</div>
-        <div id="productos-lista">
-          <p class="empty">Cargando productos...</p>
-        </div>
-      </article>
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="nuevo-producto">Nombre del producto</label>
+              <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" type="button" id="btn-agregar-producto">
+            Agregar producto
+          </button>
+        </article>
+
+        <article class="panel-card">
+          <div class="panel-heading">
+            <h2>Productos activos</h2>
+            <p>Listado disponible para operaciones diarias del negocio.</p>
+          </div>
+
+          <div id="productos-lista" class="list-surface">
+            <p class="empty">Cargando productos...</p>
+          </div>
+        </article>
+      </div>
     </section>
-  </div>
+  </main>
 
   <template id="tpl-inicio-row">
     <tr>
@@ -244,7 +310,7 @@
   <template id="tpl-producto-row">
     <div class="stock-row stock-row--product">
       <span class="stock-nombre" data-field="nombre"></span>
-      <button class="btn btn-outline btn-sm" type="button" data-action="eliminar">
+      <button class="btn btn-secondary btn-sm" type="button" data-action="eliminar">
         Eliminar
       </button>
     </div>

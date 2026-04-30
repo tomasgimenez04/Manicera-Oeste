@@ -102,8 +102,8 @@ function replaceChildren(element, children) {
 }
 
 function setBadge(element, tipo) {
-    element.classList.remove('badge-venta', 'badge-compra');
-    element.classList.add(`badge-${tipo}`);
+    element.classList.remove('venta', 'compra');
+    element.classList.add(tipo);
     element.textContent = tipo === 'venta' ? 'Venta' : 'Compra';
 }
 
@@ -126,7 +126,7 @@ function createInicioRow(item) {
     producto.textContent = item.producto;
     kg.textContent = `${item.kg} kg`;
     monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
-    monto.className = item.tipo === 'venta' ? 'amount-pos' : 'amount-neg';
+    monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
     hora.textContent = item.hora;
 
     return row;
@@ -147,7 +147,7 @@ function createBalanceRow(item) {
     producto.textContent = item.producto;
     kg.textContent = `${item.kg} kg`;
     monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
-    monto.className = item.tipo === 'venta' ? 'amount-pos' : 'amount-neg';
+    monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
 
     return row;
 }
@@ -317,7 +317,7 @@ async function cargarInicio() {
 
         const balanceEl = document.getElementById('stat-balance');
         balanceEl.textContent = fmt(balance);
-        balanceEl.className = `stat-value ${balance >= 0 ? 'blue' : 'red'}`;
+        balanceEl.className = `summary-value amount ${balance >= 0 ? 'positive' : 'negative'}`;
 
         const tbody = document.getElementById('tabla-inicio');
         const recientes = mov.slice(0, 10);
@@ -358,7 +358,7 @@ async function cargarBalance() {
 
         const totalEl = document.getElementById('b-total');
         totalEl.textContent = (balance >= 0 ? '+' : '') + fmt(balance);
-        totalEl.className = `bl-value ${balance >= 0 ? 'positivo' : 'negativo'}`;
+        totalEl.className = `balance-total amount ${balance >= 0 ? 'positive' : 'negative'}`;
 
         const tbody = document.getElementById('tabla-balance');
         if (!mov.length) {
