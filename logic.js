@@ -68,6 +68,14 @@ function ensureArray(data) {
     return Array.isArray(data) ? data : [];
 }
 
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
 function cloneTemplate(id) {
     const template = document.getElementById(id);
 
@@ -187,6 +195,44 @@ function createProductoRow(producto) {
     return row;
 }
 
+function getBusquedaProducto() {
+    const input = document.getElementById('buscar-producto');
+    return input ? input.value : '';
+}
+
+function getProductosFiltrados() {
+    const termino = normalizarTexto(getBusquedaProducto());
+
+    if (!termino) {
+        return productos;
+    }
+
+    return productos.filter((producto) => {
+        return normalizarTexto(producto.nombre).includes(termino);
+    });
+}
+
+function renderProductosList() {
+    const lista = document.getElementById('productos-lista');
+    if (!lista) {
+        return;
+    }
+
+    if (!productos.length) {
+        replaceChildren(lista, [createEmptyParagraph('No hay productos cargados.')]);
+        return;
+    }
+
+    const productosFiltrados = getProductosFiltrados();
+
+    if (!productosFiltrados.length) {
+        replaceChildren(lista, [createEmptyParagraph('No se encontraron productos que coincidan con la busqueda.')]);
+        return;
+    }
+
+    replaceChildren(lista, productosFiltrados.map(createProductoRow));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
@@ -211,6 +257,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const agregarBtn = document.getElementById('btn-agregar-producto');
     if (agregarBtn) {
         agregarBtn.addEventListener('click', agregarProducto);
+    }
+
+    const buscarProductoInput = document.getElementById('buscar-producto');
+    if (buscarProductoInput) {
+        buscarProductoInput.addEventListener('input', () => {
+            renderProductosList();
+        });
     }
 
     cargarInicio();
@@ -393,14 +446,7 @@ async function cargarStock() {
 async function cargarProductos() {
     try {
         productos = ensureArray(await fetchJson(API.productos));
-        const lista = document.getElementById('productos-lista');
-
-        if (!productos.length) {
-            replaceChildren(lista, [createEmptyParagraph('No hay productos cargados.')]);
-            return;
-        }
-
-        replaceChildren(lista, productos.map(createProductoRow));
+        renderProductosList();
     } catch (error) {
         console.error(error);
         showToast('Error al cargar productos.', 'error');

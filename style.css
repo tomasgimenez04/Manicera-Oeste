@@ -287,6 +287,10 @@ section {
   gap: 20px;
 }
 
+.panel-heading--compact {
+  margin-bottom: 14px;
+}
+
 .panel-heading h2 {
   margin: 0 0 6px;
   font-size: 18px;
@@ -299,6 +303,12 @@ section {
   color: var(--muted);
   font-size: 15px;
   line-height: 1.5;
+}
+
+.subpanel-block {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
 }
 
 .filter-row {
@@ -372,6 +382,10 @@ section {
 
 .form-grid--single {
   grid-template-columns: 1fr;
+}
+
+.form-grid--tight {
+  margin-bottom: 0;
 }
 
 .form-grid--triple {
