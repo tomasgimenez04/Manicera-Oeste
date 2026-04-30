@@ -14,8 +14,19 @@ const API = {
     stock: new URL('stock.php', APP_BASE).href
 };
 
+const PAGE_SIZE = 10;
+
 let productos = [];
+let movimientosInicio = [];
+let movimientosBalance = [];
+let stockActual = [];
 let filtroActual = 'dia';
+let visibleCounts = {
+    inicio: PAGE_SIZE,
+    balance: PAGE_SIZE,
+    stock: PAGE_SIZE,
+    productos: PAGE_SIZE
+};
 
 function actualizarFecha() {
     const fechaHoy = document.getElementById('fecha-hoy');
@@ -123,6 +134,122 @@ function createEmptyParagraph(text) {
 
 function replaceChildren(element, children) {
     element.replaceChildren(...children);
+}
+
+function resetVisibleCount(key) {
+    visibleCounts[key] = PAGE_SIZE;
+}
+
+function increaseVisibleCount(key) {
+    visibleCounts[key] += PAGE_SIZE;
+}
+
+function getVisibleItems(items, key) {
+    return items.slice(0, visibleCounts[key]);
+}
+
+function createLoadMoreButton(label, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'load-more-btn';
+    button.textContent = label;
+    button.addEventListener('click', onClick);
+    return button;
+}
+
+function createLoadMoreMeta(visible, total) {
+    const meta = document.createElement('span');
+    meta.className = 'load-more-meta';
+    meta.textContent = `Mostrando ${visible} de ${total}`;
+    return meta;
+}
+
+function createLoadMoreTableRow(colspan, visible, total, onClick) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    const shell = document.createElement('div');
+
+    cell.colSpan = colspan;
+    cell.className = 'load-more-cell';
+    shell.className = 'load-more-shell';
+    shell.append(
+        createLoadMoreMeta(visible, total),
+        createLoadMoreButton('Ver mas', onClick)
+    );
+
+    cell.appendChild(shell);
+    row.appendChild(cell);
+
+    return row;
+}
+
+function createLoadMoreListBlock(visible, total, onClick) {
+    const wrapper = document.createElement('div');
+
+    wrapper.className = 'load-more-shell load-more-shell--list';
+    wrapper.append(
+        createLoadMoreMeta(visible, total),
+        createLoadMoreButton('Ver mas', onClick)
+    );
+
+    return wrapper;
+}
+
+function renderPaginatedTable(config) {
+    const {
+        tbody,
+        items,
+        key,
+        colspan,
+        emptyMessage,
+        createRow,
+        rerender
+    } = config;
+
+    if (!items.length) {
+        replaceChildren(tbody, [createEmptyTableRow(colspan, emptyMessage)]);
+        return;
+    }
+
+    const visibleItems = getVisibleItems(items, key);
+    const rows = visibleItems.map(createRow);
+
+    if (visibleItems.length < items.length) {
+        rows.push(createLoadMoreTableRow(colspan, visibleItems.length, items.length, () => {
+            increaseVisibleCount(key);
+            rerender();
+        }));
+    }
+
+    replaceChildren(tbody, rows);
+}
+
+function renderPaginatedList(config) {
+    const {
+        container,
+        items,
+        key,
+        emptyMessage,
+        createRow,
+        rerender
+    } = config;
+
+    if (!items.length) {
+        replaceChildren(container, [createEmptyParagraph(emptyMessage)]);
+        return;
+    }
+
+    const visibleItems = getVisibleItems(items, key);
+    const children = visibleItems.map(createRow);
+
+    if (visibleItems.length < items.length) {
+        children.push(createLoadMoreListBlock(visibleItems.length, items.length, () => {
+            increaseVisibleCount(key);
+            rerender();
+        }));
+    }
+
+    replaceChildren(container, children);
 }
 
 function setBadge(element, tipo) {
@@ -246,7 +373,64 @@ function renderProductosList() {
         return;
     }
 
-    replaceChildren(lista, productosFiltrados.map(createProductoRow));
+    renderPaginatedList({
+        container: lista,
+        items: productosFiltrados,
+        key: 'productos',
+        emptyMessage: 'No hay productos cargados.',
+        createRow: createProductoRow,
+        rerender: renderProductosList
+    });
+}
+
+function renderInicioTable() {
+    const tbody = document.getElementById('tabla-inicio');
+    if (!tbody) {
+        return;
+    }
+
+    renderPaginatedTable({
+        tbody,
+        items: movimientosInicio,
+        key: 'inicio',
+        colspan: 5,
+        emptyMessage: 'Aun no hay movimientos hoy.',
+        createRow: createInicioRow,
+        rerender: renderInicioTable
+    });
+}
+
+function renderBalanceTable() {
+    const tbody = document.getElementById('tabla-balance');
+    if (!tbody) {
+        return;
+    }
+
+    renderPaginatedTable({
+        tbody,
+        items: movimientosBalance,
+        key: 'balance',
+        colspan: 6,
+        emptyMessage: 'Sin movimientos en este periodo.',
+        createRow: createBalanceRow,
+        rerender: renderBalanceTable
+    });
+}
+
+function renderStockList() {
+    const lista = document.getElementById('stock-lista');
+    if (!lista) {
+        return;
+    }
+
+    renderPaginatedList({
+        container: lista,
+        items: stockActual,
+        key: 'stock',
+        emptyMessage: 'Sin datos de stock aun.',
+        createRow: createStockRow,
+        rerender: renderStockList
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -278,6 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const buscarProductoInput = document.getElementById('buscar-producto');
     if (buscarProductoInput) {
         buscarProductoInput.addEventListener('input', () => {
+            resetVisibleCount('productos');
             renderProductosList();
         });
     }
@@ -372,11 +557,13 @@ async function registrar(tipo) {
 
 async function cargarInicio() {
     try {
-        const mov = ensureArray(await fetchJson(`${API.movimientos}?filtro=dia`));
-        const ingresos = mov
+        movimientosInicio = ensureArray(await fetchJson(`${API.movimientos}?filtro=dia`));
+        resetVisibleCount('inicio');
+
+        const ingresos = movimientosInicio
             .filter((item) => item.tipo === 'venta')
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const egresos = mov
+        const egresos = movimientosInicio
             .filter((item) => item.tipo === 'compra')
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const balance = ingresos - egresos;
@@ -387,16 +574,7 @@ async function cargarInicio() {
         const balanceEl = document.getElementById('stat-balance');
         balanceEl.textContent = fmt(balance);
         balanceEl.className = `summary-value amount ${balance >= 0 ? 'positive' : 'negative'}`;
-
-        const tbody = document.getElementById('tabla-inicio');
-        const recientes = mov.slice(0, 10);
-
-        if (!recientes.length) {
-            replaceChildren(tbody, [createEmptyTableRow(5, 'Aun no hay movimientos hoy.')]);
-            return;
-        }
-
-        replaceChildren(tbody, recientes.map(createInicioRow));
+        renderInicioTable();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar movimientos.'), 'error');
@@ -412,30 +590,25 @@ function setFiltro(filtro, btn) {
 
 async function cargarBalance() {
     try {
-        const mov = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroActual}`));
-        const ingresos = mov
+        movimientosBalance = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroActual}`));
+        resetVisibleCount('balance');
+
+        const ingresos = movimientosBalance
             .filter((item) => item.tipo === 'venta')
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const egresos = mov
+        const egresos = movimientosBalance
             .filter((item) => item.tipo === 'compra')
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const balance = ingresos - egresos;
 
         document.getElementById('b-ingresos').textContent = fmt(ingresos);
         document.getElementById('b-egresos').textContent = fmt(egresos);
-        document.getElementById('b-count').textContent = mov.length;
+        document.getElementById('b-count').textContent = movimientosBalance.length;
 
         const totalEl = document.getElementById('b-total');
         totalEl.textContent = (balance >= 0 ? '+' : '') + fmt(balance);
         totalEl.className = `balance-total amount ${balance >= 0 ? 'positive' : 'negative'}`;
-
-        const tbody = document.getElementById('tabla-balance');
-        if (!mov.length) {
-            replaceChildren(tbody, [createEmptyTableRow(6, 'Sin movimientos en este periodo.')]);
-            return;
-        }
-
-        replaceChildren(tbody, mov.map(createBalanceRow));
+        renderBalanceTable();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar balance.'), 'error');
@@ -444,15 +617,9 @@ async function cargarBalance() {
 
 async function cargarStock() {
     try {
-        const stock = ensureArray(await fetchJson(API.stock));
-        const lista = document.getElementById('stock-lista');
-
-        if (!stock.length) {
-            replaceChildren(lista, [createEmptyParagraph('Sin datos de stock aun.')]);
-            return;
-        }
-
-        replaceChildren(lista, stock.map(createStockRow));
+        stockActual = ensureArray(await fetchJson(API.stock));
+        resetVisibleCount('stock');
+        renderStockList();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar stock.'), 'error');
@@ -462,6 +629,7 @@ async function cargarStock() {
 async function cargarProductos() {
     try {
         productos = ensureArray(await fetchJson(API.productos));
+        resetVisibleCount('productos');
         renderProductosList();
     } catch (error) {
         console.error(error);

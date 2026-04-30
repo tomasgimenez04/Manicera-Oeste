@@ -555,6 +555,55 @@ textarea:focus {
   border-bottom: none;
 }
 
+.load-more-cell {
+  padding: 18px 12px 8px;
+  border-bottom: none !important;
+}
+
+.load-more-shell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.94), rgba(255, 255, 255, 1));
+}
+
+.load-more-shell--list {
+  margin: 12px 0 10px;
+}
+
+.load-more-meta {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: #ffffff;
+  color: var(--primary-strong);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.load-more-btn:hover {
+  background: #f9fafb;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
+}
+
 .cell-muted {
   color: var(--muted);
   white-space: nowrap;
@@ -778,6 +827,11 @@ textarea:focus {
 
   .movements-table {
     min-width: 700px;
+  }
+
+  .load-more-shell {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .stock-row,
