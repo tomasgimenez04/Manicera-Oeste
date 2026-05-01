@@ -26,7 +26,7 @@ $resultado = $conn->query("
         v_stock.stock_kg
     FROM v_stock
     LEFT JOIN productos ON productos.id = v_stock.id
-    ORDER BY v_stock.nombre ASC
+    ORDER BY v_stock.stock_kg DESC, v_stock.nombre ASC
 ");
 
 if (!$resultado) {
