@@ -11,7 +11,8 @@ const APP_BASE = (() => {
 const API = {
     productos: new URL('products.php', APP_BASE).href,
     movimientos: new URL('movements.php', APP_BASE).href,
-    stock: new URL('stock.php', APP_BASE).href
+    stock: new URL('stock.php', APP_BASE).href,
+    tickets: new URL('tickets.php', APP_BASE).href
 };
 
 const PAGE_SIZE = 10;
@@ -19,11 +20,15 @@ const PAGE_SIZE = 10;
 let productos = [];
 let movimientosInicio = [];
 let movimientosBalance = [];
+let ticketsVentas = [];
 let stockActual = [];
 let filtroActual = 'dia';
+let filtroTicketsActual = 'dia';
+let ticketActual = null;
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
+    tickets: PAGE_SIZE,
     stock: PAGE_SIZE,
     productos: PAGE_SIZE
 };
@@ -57,6 +62,24 @@ function fmt(n) {
 function fmtKg(value) {
     const cantidad = Number(value);
     return `${(Number.isFinite(cantidad) ? cantidad : 0).toFixed(1)} kg`;
+}
+
+function fmtKgTicket(value) {
+    const cantidad = Number(value);
+    return `${(Number.isFinite(cantidad) ? cantidad : 0).toLocaleString('es-AR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })} kg`;
+}
+
+function fmtCurrencyTicket(value) {
+    const monto = Number(value);
+    return (Number.isFinite(monto) ? monto : 0).toLocaleString('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 function getProductStockClass(value) {
@@ -120,6 +143,27 @@ function formatearNombreProducto(nombre, codigo) {
     }
 
     return `${nombre} (${codigo})`;
+}
+
+function getTicketCodigo(item) {
+    return item && item.codigo_producto ? item.codigo_producto : (item && item.codigo ? item.codigo : '');
+}
+
+function buildTicketData(item) {
+    return {
+        id: item && item.id ? item.id : '-',
+        fecha: item && item.fecha ? item.fecha : '-',
+        hora: item && item.hora ? item.hora : '-',
+        producto: item && item.producto ? item.producto : '-',
+        codigo: getTicketCodigo(item) || 'Sin codigo',
+        kg: item && item.kg ? item.kg : 0,
+        monto: item && item.monto ? item.monto : 0
+    };
+}
+
+function getTicketFileName(ticket) {
+    const fecha = String(ticket.fecha || 'sin-fecha').replace(/\//g, '-');
+    return `ticket-${ticket.id}-${fecha}.pdf`;
 }
 
 function cloneTemplate(id) {
@@ -322,6 +366,38 @@ function createBalanceRow(item) {
     return row;
 }
 
+function createTicketRow(item) {
+    const row = cloneTemplate('tpl-ticket-row');
+    const id = row.querySelector('[data-field="id"]');
+    const fecha = row.querySelector('[data-field="fecha"]');
+    const hora = row.querySelector('[data-field="hora"]');
+    const producto = row.querySelector('[data-field="producto"]');
+    const kg = row.querySelector('[data-field="kg"]');
+    const monto = row.querySelector('[data-field="monto"]');
+    const ticket = row.querySelector('[data-field="ticket"]');
+    const button = document.createElement('button');
+
+    id.textContent = `#${item.id}`;
+    fecha.textContent = item.fecha;
+    hora.textContent = item.hora;
+    producto.textContent = formatearNombreProducto(item.producto, getTicketCodigo(item));
+    kg.textContent = fmtKg(item.kg);
+    monto.textContent = fmtCurrencyTicket(item.monto);
+    monto.className = 'amount positive';
+    ticket.className = 'ticket-cell';
+
+    button.type = 'button';
+    button.className = 'btn btn-secondary btn-sm ticket-open-btn';
+    button.textContent = 'Ver ticket';
+    button.addEventListener('click', () => {
+        openTicketModal(item);
+    });
+
+    replaceChildren(ticket, [button]);
+
+    return row;
+}
+
 function createStockRow(item) {
     const row = cloneTemplate('tpl-stock-row');
     const nombre = row.querySelector('[data-field="nombre"]');
@@ -463,6 +539,23 @@ function renderBalanceTable() {
     });
 }
 
+function renderTicketsTable() {
+    const tbody = document.getElementById('tabla-tickets');
+    if (!tbody) {
+        return;
+    }
+
+    renderPaginatedTable({
+        tbody,
+        items: ticketsVentas,
+        key: 'tickets',
+        colspan: 7,
+        emptyMessage: 'Sin tickets en este periodo.',
+        createRow: createTicketRow,
+        rerender: renderTicketsTable
+    });
+}
+
 function renderStockList() {
     const lista = document.getElementById('stock-lista');
     if (!lista) {
@@ -479,6 +572,97 @@ function renderStockList() {
     });
 }
 
+function openTicketModal(item) {
+    const modal = document.getElementById('ticket-modal');
+
+    if (!modal) {
+        return;
+    }
+
+    ticketActual = buildTicketData(item);
+
+    document.getElementById('ticket-numero').textContent = `#${ticketActual.id}`;
+    document.getElementById('ticket-fecha').textContent = ticketActual.fecha;
+    document.getElementById('ticket-hora').textContent = ticketActual.hora;
+    document.getElementById('ticket-producto').textContent = ticketActual.producto;
+    document.getElementById('ticket-codigo').textContent = ticketActual.codigo;
+    document.getElementById('ticket-cantidad').textContent = fmtKgTicket(ticketActual.kg);
+    document.getElementById('ticket-total').textContent = fmtCurrencyTicket(ticketActual.monto);
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}
+
+function closeTicketModal() {
+    const modal = document.getElementById('ticket-modal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+}
+
+function downloadTicketPdf() {
+    if (!ticketActual) {
+        return;
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        showToast('No se pudo cargar la libreria PDF.', 'error');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [210, 80]
+    });
+    const left = 7;
+    const right = 73;
+    const center = 40;
+    let y = 16;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('MANICERA OESTE', center, y, { align: 'center' });
+
+    y += 9;
+    doc.setFontSize(11);
+    doc.text('TICKET DE CONTROL', center, y, { align: 'center' });
+
+    y += 7;
+    doc.line(left, y, right, y);
+
+    const drawLine = (label, value, large = false) => {
+        y += large ? 10 : 8;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(large ? 11 : 9);
+        doc.text(label, left, y);
+        doc.setFont('helvetica', large ? 'bold' : 'normal');
+        doc.setFontSize(large ? 13 : 9);
+        doc.text(String(value), right, y, { align: 'right' });
+    };
+
+    drawLine('Nro Ticket:', `#${ticketActual.id}`);
+    drawLine('Fecha:', ticketActual.fecha);
+    drawLine('Hora:', ticketActual.hora);
+
+    y += 5;
+    doc.line(left, y, right, y);
+
+    drawLine('Producto:', ticketActual.producto);
+    drawLine('Codigo:', ticketActual.codigo);
+    drawLine('Kg:', fmtKgTicket(ticketActual.kg));
+    drawLine('Monto total:', fmtCurrencyTicket(ticketActual.monto), true);
+
+    doc.save(getTicketFileName(ticketActual));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
@@ -488,9 +672,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.querySelectorAll('.filter-btn').forEach((btn) => {
+    document.querySelectorAll('.balance-filter-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             setFiltro(btn.dataset.filter, btn);
+        });
+    });
+
+    document.querySelectorAll('.ticket-filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            setTicketFiltro(btn.dataset.ticketFilter, btn);
         });
     });
 
@@ -517,6 +707,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('[data-ticket-close]').forEach((element) => {
+        element.addEventListener('click', closeTicketModal);
+    });
+
+    const ticketCloseBtn = document.getElementById('ticket-close-btn');
+    if (ticketCloseBtn) {
+        ticketCloseBtn.addEventListener('click', closeTicketModal);
+    }
+
+    const ticketPdfBtn = document.getElementById('ticket-pdf-btn');
+    if (ticketPdfBtn) {
+        ticketPdfBtn.addEventListener('click', downloadTicketPdf);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeTicketModal();
+        }
+    });
+
     cargarInicio();
     cargarProductosEnSelects();
 });
@@ -537,6 +747,7 @@ function showSection(id, btn) {
     if (id === 'inicio') cargarInicio();
     if (id === 'registrar') cargarProductosEnSelects();
     if (id === 'balance') cargarBalance();
+    if (id === 'tickets') cargarTickets();
     if (id === 'stock') cargarStock();
     if (id === 'productos') cargarProductos();
 }
@@ -633,9 +844,16 @@ async function cargarInicio() {
 
 function setFiltro(filtro, btn) {
     filtroActual = filtro;
-    document.querySelectorAll('.filter-btn').forEach((filterBtn) => filterBtn.classList.remove('active'));
+    document.querySelectorAll('.balance-filter-btn').forEach((filterBtn) => filterBtn.classList.remove('active'));
     btn.classList.add('active');
     cargarBalance();
+}
+
+function setTicketFiltro(filtro, btn) {
+    filtroTicketsActual = filtro;
+    document.querySelectorAll('.ticket-filter-btn').forEach((filterBtn) => filterBtn.classList.remove('active'));
+    btn.classList.add('active');
+    cargarTickets();
 }
 
 async function cargarBalance() {
@@ -662,6 +880,17 @@ async function cargarBalance() {
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar balance.'), 'error');
+    }
+}
+
+async function cargarTickets() {
+    try {
+        ticketsVentas = ensureArray(await fetchJson(`${API.tickets}?filtro=${filtroTicketsActual}`));
+        resetVisibleCount('tickets');
+        renderTicketsTable();
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al cargar tickets.'), 'error');
     }
 }
 

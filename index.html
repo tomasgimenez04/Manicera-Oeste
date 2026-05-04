@@ -7,8 +7,9 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=20260504-4">
-  <script src="logic.js?v=20260504-4" defer></script>
+  <link rel="stylesheet" href="style.css?v=20260504-6">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="logic.js?v=20260504-6" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -24,6 +25,7 @@
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
+      <button class="nav-btn" type="button" data-section="tickets">Tickets</button>
       <button class="nav-btn" type="button" data-section="stock">Stock</button>
       <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
@@ -162,9 +164,9 @@
 
           <div class="filter-row">
             <span class="filter-label">Ver:</span>
-            <button class="filter-btn active" type="button" data-filter="dia">Hoy</button>
-            <button class="filter-btn" type="button" data-filter="semana">Esta semana</button>
-            <button class="filter-btn" type="button" data-filter="mes">Este mes</button>
+            <button class="filter-btn balance-filter-btn active" type="button" data-filter="dia">Hoy</button>
+            <button class="filter-btn balance-filter-btn" type="button" data-filter="semana">Esta semana</button>
+            <button class="filter-btn balance-filter-btn" type="button" data-filter="mes">Este mes</button>
           </div>
         </div>
 
@@ -221,6 +223,45 @@
             <tbody id="tabla-balance">
               <tr>
                 <td colspan="6" class="empty">Sin movimientos en este periodo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="tickets" class="section">
+      <article class="panel-card">
+        <div class="panel-heading panel-heading--split">
+          <div>
+            <h2>Tickets de venta</h2>
+            <p>Consulta y reimprime comprobantes internos generados a partir de las ventas registradas.</p>
+          </div>
+
+          <div class="filter-row">
+            <span class="filter-label">Ver:</span>
+            <button class="filter-btn ticket-filter-btn active" type="button" data-ticket-filter="dia">Hoy</button>
+            <button class="filter-btn ticket-filter-btn" type="button" data-ticket-filter="semana">Esta semana</button>
+            <button class="filter-btn ticket-filter-btn" type="button" data-ticket-filter="mes">Este mes</button>
+          </div>
+        </div>
+
+        <div class="table-shell">
+          <table class="movements-table tickets-table">
+            <thead>
+              <tr>
+                <th>N° Ticket</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Producto</th>
+                <th>Kg</th>
+                <th>Total</th>
+                <th>Ticket</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-tickets">
+              <tr>
+                <td colspan="7" class="empty">Sin tickets en este periodo.</td>
               </tr>
             </tbody>
           </table>
@@ -324,6 +365,18 @@
     </tr>
   </template>
 
+  <template id="tpl-ticket-row">
+    <tr>
+      <td data-field="id"></td>
+      <td data-field="fecha"></td>
+      <td class="cell-muted" data-field="hora"></td>
+      <td data-field="producto"></td>
+      <td data-field="kg"></td>
+      <td data-field="monto"></td>
+      <td data-field="ticket"></td>
+    </tr>
+  </template>
+
   <template id="tpl-stock-row">
     <div class="stock-row">
       <span class="stock-nombre" data-field="nombre"></span>
@@ -348,6 +401,57 @@
       </button>
     </div>
   </template>
+
+  <div class="ticket-modal is-hidden" id="ticket-modal" aria-hidden="true">
+    <div class="ticket-modal__backdrop" data-ticket-close></div>
+    <div class="ticket-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
+      <div class="ticket-modal__actions">
+        <button class="btn btn-secondary btn-sm" type="button" id="ticket-pdf-btn">Descargar PDF</button>
+        <button class="btn btn-primary btn-sm" type="button" id="ticket-close-btn">Cerrar</button>
+      </div>
+
+      <article class="ticket-sheet" id="ticket-sheet">
+        <header class="ticket-sheet__header">
+          <strong class="ticket-brand">MANICERA OESTE</strong>
+          <p class="ticket-sheet__subtitle" id="ticket-title">TICKET DE CONTROL</p>
+        </header>
+
+        <section class="ticket-block">
+          <div class="ticket-line">
+            <span class="ticket-label">Nro Ticket:</span>
+            <span class="ticket-value" id="ticket-numero">-</span>
+          </div>
+          <div class="ticket-line">
+            <span class="ticket-label">Fecha:</span>
+            <span class="ticket-value" id="ticket-fecha">-</span>
+          </div>
+          <div class="ticket-line">
+            <span class="ticket-label">Hora:</span>
+            <span class="ticket-value" id="ticket-hora">-</span>
+          </div>
+        </section>
+
+        <section class="ticket-block">
+          <div class="ticket-line">
+            <span class="ticket-label">Producto:</span>
+            <span class="ticket-value" id="ticket-producto">-</span>
+          </div>
+          <div class="ticket-line">
+            <span class="ticket-label">Codigo:</span>
+            <span class="ticket-value" id="ticket-codigo">-</span>
+          </div>
+          <div class="ticket-line">
+            <span class="ticket-label">Kg:</span>
+            <span class="ticket-value" id="ticket-cantidad">-</span>
+          </div>
+          <div class="ticket-line ticket-line--total">
+            <span class="ticket-label">Monto total:</span>
+            <span class="ticket-value" id="ticket-total">-</span>
+          </div>
+        </section>
+      </article>
+    </div>
+  </div>
 
   <div class="toast" id="toast" aria-live="polite"></div>
 </body>
