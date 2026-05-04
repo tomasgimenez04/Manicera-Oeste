@@ -54,6 +54,25 @@ function fmt(n) {
     return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 }
 
+function fmtKg(value) {
+    const cantidad = Number(value);
+    return `${(Number.isFinite(cantidad) ? cantidad : 0).toFixed(1)} kg`;
+}
+
+function getProductStockClass(value) {
+    const cantidad = Number(value);
+
+    if (cantidad > 10) {
+        return 'product-stock--high';
+    }
+
+    if (cantidad > 0) {
+        return 'product-stock--medium';
+    }
+
+    return 'product-stock--empty';
+}
+
 function getErrorMessage(error, fallback) {
     if (error && typeof error.message === 'string' && error.message.trim() !== '') {
         return error.message;
@@ -312,7 +331,7 @@ function createStockRow(item) {
     const alerta = Number(item.stock_kg) < 5;
 
     nombre.textContent = formatearNombreProducto(item.nombre, item.codigo);
-    cantidad.textContent = `${Number(item.stock_kg).toFixed(1)} kg`;
+    cantidad.textContent = fmtKg(item.stock_kg);
 
     if (alerta) {
         stock.classList.add('alerta');
@@ -328,9 +347,16 @@ function createStockRow(item) {
 function createProductoRow(producto) {
     const row = cloneTemplate('tpl-producto-row');
     const nombre = row.querySelector('[data-field="nombre"]');
+    const codigo = row.querySelector('[data-field="codigo"]');
+    const stock = row.querySelector('[data-field="stock"]');
     const button = row.querySelector('[data-action="eliminar"]');
 
-    nombre.textContent = formatearNombreProducto(producto.nombre, producto.codigo);
+    nombre.textContent = producto.nombre;
+    codigo.textContent = producto.codigo ? `(${producto.codigo})` : '';
+    codigo.classList.toggle('is-hidden', !producto.codigo);
+    stock.textContent = `Stock actual: ${fmtKg(producto.stock_kg)}`;
+    stock.classList.remove('product-stock--high', 'product-stock--medium', 'product-stock--empty');
+    stock.classList.add(getProductStockClass(producto.stock_kg));
     button.addEventListener('click', () => {
         eliminarProducto(producto.id, formatearNombreProducto(producto.nombre, producto.codigo));
     });
@@ -338,20 +364,40 @@ function createProductoRow(producto) {
     return row;
 }
 
-function getBusquedaProducto() {
+function getBusquedaProductoNombre() {
     const input = document.getElementById('buscar-producto');
     return input ? input.value : '';
 }
 
-function getProductosFiltrados() {
-    const termino = normalizarTexto(getBusquedaProducto());
+function getBusquedaProductoCodigo() {
+    const input = document.getElementById('buscar-codigo');
+    return input ? input.value : '';
+}
 
-    if (!termino) {
+function coincideCodigoEnOrden(codigoProducto, busquedaCodigo) {
+    const codigoNormalizado = normalizarTexto(codigoProducto);
+    const busquedaNormalizada = normalizarTexto(busquedaCodigo);
+
+    if (!busquedaNormalizada) {
+        return true;
+    }
+
+    return codigoNormalizado.startsWith(busquedaNormalizada);
+}
+
+function getProductosFiltrados() {
+    const terminoNombre = normalizarTexto(getBusquedaProductoNombre());
+    const terminoCodigo = normalizarTexto(getBusquedaProductoCodigo());
+
+    if (!terminoNombre && !terminoCodigo) {
         return productos;
     }
 
     return productos.filter((producto) => {
-        return normalizarTexto(producto.nombre).includes(termino);
+        const coincideNombre = !terminoNombre || normalizarTexto(producto.nombre).includes(terminoNombre);
+        const coincideCodigo = coincideCodigoEnOrden(producto.codigo, terminoCodigo);
+
+        return coincideNombre && coincideCodigo;
     });
 }
 
@@ -459,13 +505,17 @@ document.addEventListener('DOMContentLoaded', () => {
         agregarBtn.addEventListener('click', agregarProducto);
     }
 
-    const buscarProductoInput = document.getElementById('buscar-producto');
-    if (buscarProductoInput) {
-        buscarProductoInput.addEventListener('input', () => {
+    ['buscar-producto', 'buscar-codigo'].forEach((id) => {
+        const input = document.getElementById(id);
+        if (!input) {
+            return;
+        }
+
+        input.addEventListener('input', () => {
             resetVisibleCount('productos');
             renderProductosList();
         });
-    }
+    });
 
     cargarInicio();
     cargarProductosEnSelects();

@@ -15,7 +15,17 @@ if ($metodo === 'OPTIONS') {
 }
 
 if ($metodo === 'GET') {
-    $resultado = $conn->query("SELECT id, nombre, COALESCE(codigo, '') AS codigo FROM productos WHERE activo = 1 ORDER BY nombre ASC");
+    $resultado = $conn->query("
+        SELECT
+            productos.id,
+            productos.nombre,
+            COALESCE(productos.codigo, '') AS codigo,
+            COALESCE(v_stock.stock_kg, 0) AS stock_kg
+        FROM productos
+        LEFT JOIN v_stock ON v_stock.id = productos.id
+        WHERE productos.activo = 1
+        ORDER BY productos.nombre ASC
+    ");
 
     if (!$resultado) {
         http_response_code(500);
@@ -23,7 +33,13 @@ if ($metodo === 'GET') {
         exit;
     }
 
-    echo json_encode($resultado->fetch_all(MYSQLI_ASSOC));
+    $productos = $resultado->fetch_all(MYSQLI_ASSOC);
+
+    foreach ($productos as &$producto) {
+        $producto['stock_kg'] = floatval($producto['stock_kg']);
+    }
+
+    echo json_encode($productos);
     exit;
 }
 

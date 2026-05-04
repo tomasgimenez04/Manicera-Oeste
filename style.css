@@ -172,8 +172,20 @@ section {
   grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.35fr);
 }
 
-#productos .dashboard-grid--sidebar {
+.products-layout {
+  display: grid;
+  gap: 24px;
+}
+
+.products-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
   align-items: stretch;
+}
+
+.products-tools > .subpanel-card {
+  height: 100%;
 }
 
 .summary-grid {
@@ -215,6 +227,10 @@ section {
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+#productos .subpanel-card .btn {
+  width: 100%;
 }
 
 #registrar .form-card {
@@ -665,10 +681,59 @@ textarea:focus {
   gap: 20px;
 }
 
+.product-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .stock-nombre {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+}
+
+#productos .product-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+#productos .stock-nombre {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+#productos .product-code,
+#productos .product-stock {
+  display: inline-flex;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+#productos .product-code {
+  color: var(--muted-strong);
+}
+
+#productos .product-stock {
+  margin-top: 2px;
+}
+
+#productos .product-stock--high {
+  color: var(--success);
+}
+
+#productos .product-stock--medium {
+  color: var(--warning);
+}
+
+#productos .product-stock--empty {
+  color: var(--danger);
 }
 
 .stock-kg {
@@ -803,6 +868,10 @@ textarea:focus {
 
   .form-grid,
   .form-grid--triple {
+    grid-template-columns: 1fr;
+  }
+
+  .products-tools {
     grid-template-columns: 1fr;
   }
 

@@ -20,13 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 $resultado = $conn->query("
     SELECT
-        v_stock.id,
-        v_stock.nombre,
+        productos.id,
+        productos.nombre,
         COALESCE(productos.codigo, '') AS codigo,
-        v_stock.stock_kg
-    FROM v_stock
-    LEFT JOIN productos ON productos.id = v_stock.id
-    ORDER BY v_stock.stock_kg DESC, v_stock.nombre ASC
+        COALESCE(v_stock.stock_kg, 0) AS stock_kg
+    FROM productos
+    LEFT JOIN v_stock ON v_stock.id = productos.id
+    WHERE productos.activo = 1
+    ORDER BY COALESCE(v_stock.stock_kg, 0) DESC, productos.nombre ASC
 ");
 
 if (!$resultado) {

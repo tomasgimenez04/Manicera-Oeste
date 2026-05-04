@@ -7,8 +7,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=20260430-2">
-  <script src="logic.js?v=20260430-2" defer></script>
+  <link rel="stylesheet" href="style.css?v=20260504-4">
+  <script src="logic.js?v=20260504-4" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -246,12 +246,12 @@
     </section>
 
     <section id="productos" class="section">
-      <div class="dashboard-grid dashboard-grid--sidebar">
-        <article class="form-card form-card--split">
-          <div class="subpanel-card">
+      <div class="products-layout">
+        <div class="products-tools">
+          <article class="subpanel-card">
             <div class="panel-heading">
               <h2>Agregar producto</h2>
-              <p>Incorpora nuevos productos para operar ventas, compras y stock.</p>
+              <p>Incorpora nuevos productos para operar compras y ventas.</p>
             </div>
 
             <div class="form-grid form-grid--single form-grid--tight">
@@ -268,12 +268,12 @@
             <button class="btn btn-primary" type="button" id="btn-agregar-producto">
               Agregar producto
             </button>
-          </div>
+          </article>
 
-          <div class="subpanel-card">
+          <article class="subpanel-card">
             <div class="panel-heading panel-heading--compact">
               <h2>Buscar producto</h2>
-              <p>Escribi un nombre y la lista de productos activos se filtrara automaticamente.</p>
+              <p>Filtra la lista por nombre y/o codigo para encontrar un producto mas rapido.</p>
             </div>
 
             <div class="form-grid form-grid--single form-grid--tight">
@@ -281,9 +281,13 @@
                 <label for="buscar-producto">Nombre del producto</label>
                 <input type="text" id="buscar-producto" placeholder="Ej: Mani tostado">
               </div>
+              <div class="form-group">
+                <label for="buscar-codigo">Codigo del producto</label>
+                <input type="text" id="buscar-codigo" placeholder="Ej: MT-002">
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
 
         <article class="panel-card">
           <div class="panel-heading">
@@ -332,7 +336,13 @@
 
   <template id="tpl-producto-row">
     <div class="stock-row stock-row--product">
-      <span class="stock-nombre" data-field="nombre"></span>
+      <div class="product-copy">
+        <div class="product-heading">
+          <span class="stock-nombre" data-field="nombre"></span>
+          <span class="product-code" data-field="codigo"></span>
+        </div>
+        <span class="product-stock" data-field="stock"></span>
+      </div>
       <button class="btn btn-primary btn-danger btn-sm" type="button" data-action="eliminar">
         Eliminar
       </button>
