@@ -1,3 +1,4 @@
+/* Base y variables */
 * {
   box-sizing: border-box;
 }
@@ -68,6 +69,7 @@ section {
   margin-bottom: 24px;
 }
 
+/* Layout general */
 .app-container {
   max-width: 1380px;
   width: min(1380px, calc(100% - 56px));
@@ -88,6 +90,10 @@ section {
   border-radius: 24px;
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(16px);
+}
+
+.app-header__copy {
+  text-align: left;
 }
 
 .app-header__copy h1 {
@@ -192,6 +198,7 @@ section {
   height: 100%;
 }
 
+/* Tarjetas y paneles */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -358,6 +365,7 @@ section {
   margin-top: auto;
 }
 
+/* Filtros y formularios */
 .filter-row {
   display: flex;
   gap: 10px;
@@ -449,6 +457,59 @@ section {
   color: var(--muted-strong);
   font-size: 14px;
   font-weight: 700;
+}
+
+.tooltip-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  cursor: help;
+}
+
+.tooltip-label::before,
+.tooltip-label::after {
+  position: absolute;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.tooltip-label::before {
+  content: attr(data-tooltip);
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%) translateY(6px);
+  min-width: 220px;
+  max-width: 280px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.96);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.18);
+  z-index: 10;
+}
+
+.tooltip-label::after {
+  content: '';
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%) translateY(6px);
+  border-width: 8px 7px 0;
+  border-style: solid;
+  border-color: rgba(17, 24, 39, 0.96) transparent transparent;
+  z-index: 10;
+}
+
+.tooltip-label:hover::before,
+.tooltip-label:hover::after,
+.tooltip-label:focus-visible::before,
+.tooltip-label:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 input,
@@ -545,6 +606,7 @@ textarea:focus {
   white-space: nowrap;
 }
 
+/* Tablas */
 .table-shell {
   overflow-x: auto;
 }
@@ -722,6 +784,12 @@ textarea:focus {
   gap: 6px;
 }
 
+.product-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .stock-nombre {
   font-size: 15px;
   font-weight: 600;
@@ -742,7 +810,8 @@ textarea:focus {
 }
 
 #productos .product-code,
-#productos .product-stock {
+#productos .product-stock,
+#productos .product-price {
   display: inline-flex;
   align-items: center;
   font-size: 20px;
@@ -757,6 +826,11 @@ textarea:focus {
   margin-top: 2px;
 }
 
+#productos .product-price {
+  color: var(--primary);
+  font-size: 18px;
+}
+
 #productos .product-stock--high {
   color: var(--success);
 }
@@ -769,6 +843,7 @@ textarea:focus {
   color: var(--danger);
 }
 
+/* Stock y productos */
 .stock-kg {
   display: inline-flex;
   align-items: center;
@@ -849,6 +924,18 @@ textarea:focus {
   background: var(--primary-strong);
 }
 
+.product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.product-actions .btn {
+  min-width: 104px;
+}
+
+/* Modal de ticket */
 .ticket-modal {
   position: fixed;
   inset: 0;
@@ -967,6 +1054,48 @@ textarea:focus {
   text-align: right;
 }
 
+.product-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.product-modal.is-hidden {
+  display: none;
+}
+
+.product-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.product-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+}
+
+.product-modal__card {
+  padding: 26px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
+}
+
+.product-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Responsive */
 @media (max-width: 1024px) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1060,6 +1189,15 @@ textarea:focus {
     flex-direction: column;
   }
 
+  .product-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .product-actions .btn {
+    flex: 1 1 0;
+  }
+
   .toast {
     right: 12px;
     left: 12px;
@@ -1092,8 +1230,17 @@ textarea:focus {
   .ticket-value {
     text-align: left;
   }
+
+  .product-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .product-modal__actions .btn {
+    width: 100%;
+  }
 }
 
+/* Impresion */
 @media print {
   @page {
     size: 80mm auto;

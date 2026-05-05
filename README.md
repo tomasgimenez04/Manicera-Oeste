@@ -1,114 +1,60 @@
-# 🥜 Manicera Oeste — Software de Gestión de Caja
+# Manicera Oeste - Sistema de Caja
 
-Software de flujo de caja desarrollado a medida para **Manicera Oeste**, negocio mayorista de maní y derivados.
+Aplicacion web hecha para registrar compras, ventas, stock y tickets internos de control.
 
-Permite registrar ventas y compras, controlar el stock en kilos y visualizar el balance de caja por día, semana o mes.
+## Que hace
 
----
+- Registra ventas y compras por producto
+- Calcula stock automaticamente desde los movimientos
+- Permite usar productos por `kg` o por `unidad`
+- Muestra balance por dia, semana y mes
+- Genera tickets internos para ventas
 
-## ✨ Funcionalidades
+## Estructura del proyecto
 
-- **Inicio** — Resumen del día: ingresos, egresos y balance con últimos movimientos
-- **Registrar** — Carga de ventas e ingresos / compras y egresos con detalle por producto
-- **Balance** — Filtros por día, semana y mes con detalle completo de movimientos
-- **Stock** — Control de kilos disponibles calculado automáticamente, con alerta de stock bajo
-- **Productos** — ABM de productos: agregar y eliminar sin perder historial
+Cada archivo tiene una responsabilidad concreta:
 
----
+- `index.html`: estructura visual de la app, secciones, templates y modal del ticket
+- `style.css`: todos los estilos de la interfaz, responsive e impresion
+- `logic.js`: logica del frontend, eventos, renderizado y llamadas a la API
+- `connection.php`: conexion a MySQL
+- `products.php`: API para listar, crear y desactivar productos
+- `movements.php`: API para registrar y consultar movimientos
+- `stock.php`: API para consultar stock actual
+- `tickets.php`: API para listar tickets de ventas
+- `test.php`: chequeo simple de conexion
 
-## 🛠️ Tecnologías utilizadas
+## Base de datos esperada
 
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | HTML5, CSS3, JavaScript |
-| Backend | PHP 8.x |
-| Base de datos | MySQL |
-| Entorno local | XAMPP |
+Tablas principales:
 
----
+- `productos`
+- `movimientos`
 
-## ⚙️ Instalación
+Campos importantes usados por la app:
 
-### 1 — Requisitos previos
-- [XAMPP](https://www.apachefriends.org) instalado (incluye Apache + MySQL + PHP)
-- Cualquier navegador moderno (Chrome, Firefox, Edge)
+- `productos.unidad_medida`
+- `movimientos.cantidad`
 
-### 2 — Clonar o copiar el proyecto
+## Flujo general
 
-**Opción A — Clonar desde GitHub:**
-```bash
-cd C:\xampp\htdocs
-git clone https://github.com/tomasgimenez04/Manicera-Oeste.git manicera_oeste
-```
+1. `index.html` carga la interfaz
+2. `style.css` aplica el diseno
+3. `logic.js` conecta botones, formularios y tablas
+4. Los archivos PHP responden en JSON
+5. MySQL guarda productos y movimientos
 
-**Opción B — Copiar manualmente:**
-Copiar la carpeta del proyecto dentro de:
-```
-C:\xampp\htdocs\manicera_oeste\
-```
+## Ejecutar en local
 
-### 3 — Crear la base de datos
+1. Iniciar Apache y MySQL en XAMPP
+2. Verificar la configuracion de `connection.php`
+3. Abrir `http://localhost/manicera_oeste/`
 
-1. Iniciar **Apache** y **MySQL** desde el panel de XAMPP
-2. Abrir el navegador en `http://localhost/phpmyadmin`
-3. Crear una base de datos llamada `manicera_oeste`
-4. Ir a la pestaña **SQL**, pegar y ejecutar el contenido del archivo `caja_mani.sql`
+## Nota de mantenimiento
 
-### 4 — Configurar la conexión
+Si se agrega una nueva funcionalidad:
 
-Abrir el archivo `connection.php` y verificar los datos:
-
-```php
-$host     = "localhost";
-$usuario  = "root";       // usuario por defecto de XAMPP
-$password = "";           // vacío por defecto en XAMPP
-$base     = "manicera_oeste";
-```
-
-> En la mayoría de instalaciones de XAMPP no hay que cambiar nada.
-
-### 5 — Abrir la aplicación
-
-Con Apache y MySQL corriendo, abrir en el navegador:
-```
-http://localhost/manicera_oeste/
-```
-
----
-
-## 📁 Estructura del proyecto
-
-```
-manicera_oeste/
-├── connection.php     → Conexión a la base de datos
-├── products.php       → API: ABM de productos
-├── movements.php      → API: registro y consulta de movimientos
-├── stock.php          → API: stock actual por producto
-├── index.html         → Interfaz principal
-├── style.css          → Estilos
-└── logic.js           → Lógica del frontend
-```
-
----
-
-## 🗄️ Base de datos
-
-**Tablas:**
-- `productos` — productos activos del negocio
-- `movimientos` — registro de ventas y compras
-
-**Vistas:**
-- `v_movimientos` — movimientos con nombre de producto incluido
-- `v_stock` — kilos disponibles por producto (calculado automáticamente)
-- `v_balance_diario` — ingresos, egresos y balance agrupados por día
-
----
-
-## 💻 Uso diario
-
-1. Encender la PC
-2. Abrir el panel de XAMPP y hacer clic en **Start** en Apache y MySQL
-3. Abrir el navegador en `http://localhost/manicera_oeste/`
-
-
-
+- HTML nuevo en `index.html`
+- estilos nuevos en `style.css`
+- eventos, fetch y render en `logic.js`
+- consultas o persistencia en el PHP que corresponda

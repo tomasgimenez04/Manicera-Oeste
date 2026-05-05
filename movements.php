@@ -95,6 +95,23 @@ if ($metodo === 'POST') {
         exit;
     }
 
+    if ($tipo === 'venta' && $monto <= 0) {
+        $stmtPrecio = $conn->prepare('SELECT COALESCE(precio_unitario, 0) AS precio_unitario FROM productos WHERE id = ? AND activo = 1');
+        $stmtPrecio->bind_param('i', $producto_id);
+        $stmtPrecio->execute();
+        $resultadoPrecio = $stmtPrecio->get_result();
+        $producto = $resultadoPrecio ? $resultadoPrecio->fetch_assoc() : null;
+        $stmtPrecio->close();
+
+        if ($producto) {
+            $precio_unitario = floatval($producto['precio_unitario']);
+
+            if ($precio_unitario > 0) {
+                $monto = round($cantidad * $precio_unitario, 2);
+            }
+        }
+    }
+
     if ($monto <= 0) {
         http_response_code(400);
         echo json_encode(['error' => 'El monto debe ser mayor a 0.']);

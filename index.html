@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caja Distribuidora</title>
+  <title>Manicera Oeste</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=20260504-7">
+  <link rel="stylesheet" href="style.css?v=20260504-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260504-7" defer></script>
+  <script src="logic.js?v=20260504-8" defer></script>
 </head>
 <body>
   <main class="app-container">
     <header class="app-header">
       <div class="app-header__copy">
-        <h1>Caja Distribuidora</h1>
-        <p>Panel de control y movimientos diarios</p>
+        <h1>Manicera Oeste</h1>
+        <p>Sistema de caja, stock y control diario</p>
       </div>
       <span class="current-date" id="fecha-hoy"></span>
     </header>
 
+    <!-- Navegacion principal -->
     <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
@@ -30,6 +31,7 @@
       <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
 
+    <!-- Secciones de la aplicacion -->
     <section id="inicio" class="section active">
       <div class="summary-grid">
         <article class="summary-card">
@@ -102,7 +104,11 @@
               <input type="number" id="v-cantidad" placeholder="0.0" min="0" step="0.5">
             </div>
             <div class="form-group">
-              <label for="v-monto">Monto ($)</label>
+              <label
+                for="v-monto"
+                class="tooltip-label"
+                data-tooltip="El monto se calcula automaticamente segun la cantidad ingresada."
+              >Monto ($)</label>
               <input type="number" id="v-monto" placeholder="0" min="0">
             </div>
           </div>
@@ -311,6 +317,10 @@
                   <option value="unidad">unidad</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label for="nuevo-precio">Precio por unidad de medida ($)</label>
+                <input type="number" id="nuevo-precio" placeholder="Ej: 4800" min="0" step="0.01">
+              </div>
             </div>
 
             <button class="btn btn-primary" type="button" id="btn-agregar-producto">
@@ -351,6 +361,7 @@
     </section>
   </main>
 
+  <!-- Templates para render dinamico -->
   <template id="tpl-inicio-row">
     <tr>
       <td><span class="badge" data-field="tipo"></span></td>
@@ -401,14 +412,23 @@
           <span class="stock-nombre" data-field="nombre"></span>
           <span class="product-code" data-field="codigo"></span>
         </div>
-        <span class="product-stock" data-field="stock"></span>
+        <div class="product-meta">
+          <span class="product-stock" data-field="stock"></span>
+          <span class="product-price" data-field="precio"></span>
+        </div>
       </div>
-      <button class="btn btn-primary btn-danger btn-sm" type="button" data-action="eliminar">
-        Eliminar
-      </button>
+      <div class="product-actions">
+        <button class="btn btn-secondary btn-sm" type="button" data-action="modificar">
+          Modificar
+        </button>
+        <button class="btn btn-primary btn-danger btn-sm" type="button" data-action="eliminar">
+          Eliminar
+        </button>
+      </div>
     </div>
   </template>
 
+  <!-- Modal del ticket -->
   <div class="ticket-modal is-hidden" id="ticket-modal" aria-hidden="true">
     <div class="ticket-modal__backdrop" data-ticket-close></div>
     <div class="ticket-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
@@ -451,6 +471,10 @@
             <span class="ticket-label">Cantidad:</span>
             <span class="ticket-value" id="ticket-cantidad">-</span>
           </div>
+          <div class="ticket-line">
+            <span class="ticket-label">Precio unitario:</span>
+            <span class="ticket-value" id="ticket-precio-unitario">-</span>
+          </div>
           <div class="ticket-line ticket-line--total">
             <span class="ticket-label">Monto total:</span>
             <span class="ticket-value" id="ticket-total">-</span>
@@ -460,6 +484,39 @@
     </div>
   </div>
 
+  <div class="product-modal is-hidden" id="product-modal" aria-hidden="true">
+    <div class="product-modal__backdrop" data-product-close></div>
+    <div class="product-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+      <article class="product-modal__card">
+        <div class="panel-heading panel-heading--compact">
+          <h2 id="product-modal-title">Modificar producto</h2>
+          <p id="product-modal-unit">Unidad de medida: -</p>
+        </div>
+
+        <div class="form-grid form-grid--single form-grid--tight">
+          <div class="form-group">
+            <label for="editar-producto-nombre">Nombre del producto</label>
+            <input type="text" id="editar-producto-nombre" placeholder="Ej: Mani hervido">
+          </div>
+          <div class="form-group">
+            <label for="editar-producto-codigo">Codigo del producto</label>
+            <input type="text" id="editar-producto-codigo" placeholder="Ej: MH-001">
+          </div>
+          <div class="form-group">
+            <label for="editar-producto-precio">Precio por unidad de medida ($)</label>
+            <input type="number" id="editar-producto-precio" placeholder="Ej: 4800" min="0" step="0.01">
+          </div>
+        </div>
+
+        <div class="product-modal__actions">
+          <button class="btn btn-secondary btn-sm" type="button" id="product-close-btn">Cancelar</button>
+          <button class="btn btn-primary btn-sm" type="button" id="product-save-btn">Guardar cambios</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- Notificaciones -->
   <div class="toast" id="toast" aria-live="polite"></div>
 </body>
 </html>

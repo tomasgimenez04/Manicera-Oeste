@@ -1,4 +1,6 @@
 <?php
+
 include 'connection.php';
-echo "Conexión exitosa";
+
+echo 'Conexion exitosa';
 ?>

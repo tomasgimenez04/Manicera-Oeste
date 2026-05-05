@@ -1,3 +1,4 @@
+// Configuracion y estado global
 const APP_BASE = (() => {
     if (window.location.protocol === 'file:') {
         const parts = window.location.pathname.split('/').filter(Boolean);
@@ -25,6 +26,7 @@ let stockActual = [];
 let filtroActual = 'dia';
 let filtroTicketsActual = 'dia';
 let ticketActual = null;
+let productoEnEdicionId = null;
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
@@ -33,6 +35,7 @@ let visibleCounts = {
     productos: PAGE_SIZE
 };
 
+// Utilidades generales
 function actualizarFecha() {
     const fechaHoy = document.getElementById('fecha-hoy');
     const hoy = new Date();
@@ -94,6 +97,16 @@ function fmtCantidad(value, unidad = 'kg') {
 
 function fmtCantidadTicket(value, unidad = 'kg') {
     return `${formatCantidadNumero(value, unidad, 2, 2)} ${getUnidadTexto(unidad, value)}`;
+}
+
+function fmtPrice(value) {
+    const precio = Number(value);
+    return (Number.isFinite(precio) ? precio : 0).toLocaleString('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 function fmtCurrencyTicket(value) {
@@ -173,6 +186,34 @@ function getProductoById(productoId) {
     return productos.find((item) => Number(item.id) === Number(productoId)) || null;
 }
 
+function getPrecioUnitario(source) {
+    const precio = source && source.precio_unitario != null ? Number(source.precio_unitario) : 0;
+    return Number.isFinite(precio) ? precio : 0;
+}
+
+function getPrecioLabel(source) {
+    return getUnidadMedida(source) === 'unidad' ? 'por unidad' : 'por kg';
+}
+
+function getPrecioTexto(source) {
+    return `${fmtPrice(getPrecioUnitario(source))} ${getPrecioLabel(source)}`;
+}
+
+function getPrecioUnitarioTicket(source) {
+    const cantidad = Number(source && source.cantidad != null ? source.cantidad : 0);
+    const monto = Number(source && source.monto != null ? source.monto : 0);
+
+    if (!Number.isFinite(cantidad) || cantidad <= 0 || !Number.isFinite(monto) || monto <= 0) {
+        return 0;
+    }
+
+    return monto / cantidad;
+}
+
+function getPrecioUnitarioTicketTexto(source) {
+    return `${fmtPrice(getPrecioUnitarioTicket(source))} ${getPrecioLabel(source)}`;
+}
+
 function getTicketCodigo(item) {
     return item && item.codigo_producto ? item.codigo_producto : (item && item.codigo ? item.codigo : '');
 }
@@ -186,7 +227,8 @@ function buildTicketData(item) {
         codigo: getTicketCodigo(item) || 'Sin codigo',
         unidad_medida: getUnidadMedida(item),
         cantidad: item && item.cantidad != null ? item.cantidad : (item && item.kg != null ? item.kg : 0),
-        monto: item && item.monto != null ? item.monto : 0
+        monto: item && item.monto != null ? item.monto : 0,
+        precio_unitario: getPrecioUnitarioTicket(item)
     };
 }
 
@@ -287,6 +329,7 @@ function createLoadMoreListBlock(visible, total, onClick) {
     return wrapper;
 }
 
+// Helpers de renderizado
 function renderPaginatedTable(config) {
     const {
         tbody,
@@ -350,6 +393,7 @@ function setBadge(element, tipo) {
     element.textContent = tipo === 'venta' ? 'Venta' : 'Compra';
 }
 
+// Render de selects, tablas y listas
 function createOption(producto) {
     const option = document.createElement('option');
     option.value = producto.id;
@@ -370,6 +414,30 @@ function actualizarCampoCantidad(prefix) {
 
     input.step = unidadMedida === 'unidad' ? '1' : '0.5';
     input.placeholder = unidadMedida === 'unidad' ? '0' : '0.0';
+}
+
+function calcularMontoVenta() {
+    const montoInput = document.getElementById('v-monto');
+
+    if (!montoInput) {
+        return;
+    }
+
+    const select = document.getElementById('v-producto');
+    const producto = select ? getProductoById(parseInt(select.value, 10)) : null;
+    const cantidad = parseFloat(document.getElementById('v-cantidad').value) || 0;
+    const precio = getPrecioUnitario(producto);
+
+    if (!producto || precio <= 0) {
+        return;
+    }
+
+    if (cantidad <= 0) {
+        montoInput.value = '';
+        return;
+    }
+
+    montoInput.value = (cantidad * precio).toFixed(2);
 }
 
 function createInicioRow(item) {
@@ -469,15 +537,21 @@ function createProductoRow(producto) {
     const nombre = row.querySelector('[data-field="nombre"]');
     const codigo = row.querySelector('[data-field="codigo"]');
     const stock = row.querySelector('[data-field="stock"]');
-    const button = row.querySelector('[data-action="eliminar"]');
+    const precio = row.querySelector('[data-field="precio"]');
+    const editButton = row.querySelector('[data-action="modificar"]');
+    const deleteButton = row.querySelector('[data-action="eliminar"]');
 
     nombre.textContent = producto.nombre;
     codigo.textContent = producto.codigo ? `(${producto.codigo})` : '';
     codigo.classList.toggle('is-hidden', !producto.codigo);
     stock.textContent = `Stock actual: ${fmtCantidad(producto.stock_cantidad, producto.unidad_medida)}`;
+    precio.textContent = `Precio actual: ${getPrecioTexto(producto)}`;
     stock.classList.remove('product-stock--high', 'product-stock--medium', 'product-stock--empty');
     stock.classList.add(getProductStockClass(producto.stock_cantidad));
-    button.addEventListener('click', () => {
+    editButton.addEventListener('click', () => {
+        openProductModal(producto);
+    });
+    deleteButton.addEventListener('click', () => {
         eliminarProducto(producto.id, formatearNombreProducto(producto.nombre, producto.codigo));
     });
 
@@ -616,6 +690,89 @@ function renderStockList() {
     });
 }
 
+function openProductModal(producto) {
+    const modal = document.getElementById('product-modal');
+
+    if (!modal || !producto) {
+        return;
+    }
+
+    productoEnEdicionId = producto.id;
+    document.getElementById('editar-producto-nombre').value = producto.nombre || '';
+    document.getElementById('editar-producto-codigo').value = producto.codigo || '';
+    document.getElementById('editar-producto-precio').value = getPrecioUnitario(producto).toFixed(2);
+    document.getElementById('product-modal-unit').textContent = `Unidad de medida: ${getUnidadMedida(producto)}. Precio actual ${getPrecioLabel(producto)}.`;
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}
+
+function closeProductModal() {
+    const modal = document.getElementById('product-modal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    productoEnEdicionId = null;
+}
+
+async function guardarCambiosProducto() {
+    if (!productoEnEdicionId) {
+        showToast('No hay un producto seleccionado para modificar.', 'error');
+        return;
+    }
+
+    const nombreInput = document.getElementById('editar-producto-nombre');
+    const codigoInput = document.getElementById('editar-producto-codigo');
+    const precioInput = document.getElementById('editar-producto-precio');
+    const nombre = nombreInput.value.trim();
+    const codigo = codigoInput.value.trim();
+    const precio_unitario = parseFloat(precioInput.value) || 0;
+
+    if (!nombre) {
+        showToast('Escribi el nombre del producto.', 'error');
+        return;
+    }
+
+    if (!codigo) {
+        showToast('Escribi el codigo del producto.', 'error');
+        return;
+    }
+
+    if (precio_unitario <= 0) {
+        showToast('Escribi un precio mayor a 0.', 'error');
+        return;
+    }
+
+    try {
+        const data = await fetchJson(API.productos, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: productoEnEdicionId, nombre, codigo, precio_unitario })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        closeProductModal();
+        showToast('Producto actualizado.', 'venta');
+        await cargarProductos();
+        await cargarProductosEnSelects();
+        calcularMontoVenta();
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al actualizar el producto.'), 'error');
+    }
+}
+
+// Ticket y exportacion
 function openTicketModal(item) {
     const modal = document.getElementById('ticket-modal');
 
@@ -631,6 +788,7 @@ function openTicketModal(item) {
     document.getElementById('ticket-producto').textContent = ticketActual.producto;
     document.getElementById('ticket-codigo').textContent = ticketActual.codigo;
     document.getElementById('ticket-cantidad').textContent = fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida);
+    document.getElementById('ticket-precio-unitario').textContent = getPrecioUnitarioTicketTexto(ticketActual);
     document.getElementById('ticket-total').textContent = fmtCurrencyTicket(ticketActual.monto);
 
     modal.classList.remove('is-hidden');
@@ -702,11 +860,13 @@ function downloadTicketPdf() {
     drawLine('Producto:', ticketActual.producto);
     drawLine('Codigo:', ticketActual.codigo);
     drawLine('Cantidad:', fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida));
+    drawLine('Precio unitario:', getPrecioUnitarioTicketTexto(ticketActual));
     drawLine('Monto total:', fmtCurrencyTicket(ticketActual.monto), true);
 
     doc.save(getTicketFileName(ticketActual));
 }
 
+// Inicializacion y eventos de interfaz
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
@@ -746,9 +906,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         select.addEventListener('change', () => {
-            actualizarCampoCantidad(id.startsWith('v-') ? 'v' : 'c');
+            const prefix = id.startsWith('v-') ? 'v' : 'c';
+            actualizarCampoCantidad(prefix);
+
+            if (prefix === 'v') {
+                calcularMontoVenta();
+            }
         });
     });
+
+    const ventaCantidadInput = document.getElementById('v-cantidad');
+    if (ventaCantidadInput) {
+        ventaCantidadInput.addEventListener('input', calcularMontoVenta);
+    }
 
     ['buscar-producto', 'buscar-codigo'].forEach((id) => {
         const input = document.getElementById(id);
@@ -776,9 +946,24 @@ document.addEventListener('DOMContentLoaded', () => {
         ticketPdfBtn.addEventListener('click', downloadTicketPdf);
     }
 
+    document.querySelectorAll('[data-product-close]').forEach((element) => {
+        element.addEventListener('click', closeProductModal);
+    });
+
+    const productCloseBtn = document.getElementById('product-close-btn');
+    if (productCloseBtn) {
+        productCloseBtn.addEventListener('click', closeProductModal);
+    }
+
+    const productSaveBtn = document.getElementById('product-save-btn');
+    if (productSaveBtn) {
+        productSaveBtn.addEventListener('click', guardarCambiosProducto);
+    }
+
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeTicketModal();
+            closeProductModal();
         }
     });
 
@@ -786,6 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarProductosEnSelects();
 });
 
+// Carga de datos y acciones principales
 function showSection(id, btn) {
     document.querySelectorAll('.section').forEach((section) => section.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach((navBtn) => navBtn.classList.remove('active'));
@@ -828,6 +1014,7 @@ async function cargarProductosEnSelects() {
 
         actualizarCampoCantidad('v');
         actualizarCampoCantidad('c');
+        calcularMontoVenta();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar productos.'), 'error');
@@ -838,10 +1025,11 @@ async function registrar(tipo) {
     const prefix = tipo === 'venta' ? 'v' : 'c';
     const producto_id = parseInt(document.getElementById(`${prefix}-producto`).value, 10);
     const cantidad = parseFloat(document.getElementById(`${prefix}-cantidad`).value) || 0;
-    const monto = parseFloat(document.getElementById(`${prefix}-monto`).value) || 0;
+    let monto = parseFloat(document.getElementById(`${prefix}-monto`).value) || 0;
     const observacion = document.getElementById(`${prefix}-obs`).value.trim();
     const productoSeleccionado = getProductoById(producto_id);
     const unidadMedida = getUnidadMedida(productoSeleccionado);
+    const precioUnitario = getPrecioUnitario(productoSeleccionado);
 
     if (!producto_id) {
         showToast('Selecciona un producto.', 'error');
@@ -856,6 +1044,11 @@ async function registrar(tipo) {
     if (unidadMedida === 'unidad' && !Number.isInteger(cantidad)) {
         showToast('Para productos por unidad, la cantidad debe ser entera.', 'error');
         return;
+    }
+
+    if (tipo === 'venta' && monto <= 0 && precioUnitario > 0) {
+        monto = Number((cantidad * precioUnitario).toFixed(2));
+        document.getElementById('v-monto').value = monto.toFixed(2);
     }
 
     try {
@@ -873,6 +1066,10 @@ async function registrar(tipo) {
         document.getElementById(`${prefix}-cantidad`).value = '';
         document.getElementById(`${prefix}-monto`).value = '';
         document.getElementById(`${prefix}-obs`).value = '';
+
+        if (tipo === 'venta') {
+            calcularMontoVenta();
+        }
 
         showToast(tipo === 'venta' ? 'Venta registrada.' : 'Compra registrada.', tipo);
     } catch (error) {
@@ -985,9 +1182,11 @@ async function agregarProducto() {
     const input = document.getElementById('nuevo-producto');
     const codigoInput = document.getElementById('nuevo-codigo');
     const unidadInput = document.getElementById('nueva-unidad-medida');
+    const precioInput = document.getElementById('nuevo-precio');
     const nombre = input.value.trim();
     const codigo = codigoInput.value.trim();
     const unidad_medida = unidadInput ? unidadInput.value : 'kg';
+    const precio_unitario = precioInput ? parseFloat(precioInput.value) || 0 : 0;
 
     if (!nombre) {
         showToast('Escribi el nombre del producto.', 'error');
@@ -999,11 +1198,16 @@ async function agregarProducto() {
         return;
     }
 
+    if (precio_unitario <= 0) {
+        showToast('Escribi un precio mayor a 0.', 'error');
+        return;
+    }
+
     try {
         const data = await fetchJson(API.productos, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, codigo, unidad_medida })
+            body: JSON.stringify({ nombre, codigo, unidad_medida, precio_unitario })
         });
 
         if (data && data.error) {
@@ -1013,12 +1217,15 @@ async function agregarProducto() {
 
         input.value = '';
         codigoInput.value = '';
+        if (precioInput) {
+            precioInput.value = '';
+        }
         if (unidadInput) {
             unidadInput.value = 'kg';
         }
         showToast('Producto agregado.', 'venta');
-        cargarProductos();
-        cargarProductosEnSelects();
+        await cargarProductos();
+        await cargarProductosEnSelects();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al agregar producto.'), 'error');
@@ -1043,8 +1250,9 @@ async function eliminarProducto(id, nombre) {
         }
 
         showToast('Producto eliminado.', 'venta');
-        cargarProductos();
-        cargarProductosEnSelects();
+        await cargarProductos();
+        await cargarProductosEnSelects();
+        calcularMontoVenta();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al eliminar producto.'), 'error');
