@@ -23,11 +23,19 @@ $resultado = $conn->query("
         productos.id,
         productos.nombre,
         COALESCE(productos.codigo, '') AS codigo,
-        COALESCE(v_stock.stock_kg, 0) AS stock_kg
+        COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
+        COALESCE(SUM(
+            CASE
+                WHEN movimientos.tipo = 'compra' THEN movimientos.cantidad
+                WHEN movimientos.tipo = 'venta' THEN -movimientos.cantidad
+                ELSE 0
+            END
+        ), 0) AS stock_cantidad
     FROM productos
-    LEFT JOIN v_stock ON v_stock.id = productos.id
+    LEFT JOIN movimientos ON movimientos.producto_id = productos.id
     WHERE productos.activo = 1
-    ORDER BY COALESCE(v_stock.stock_kg, 0) DESC, productos.nombre ASC
+    GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida
+    ORDER BY stock_cantidad DESC, productos.nombre ASC
 ");
 
 if (!$resultado) {
@@ -39,7 +47,7 @@ if (!$resultado) {
 $stock = $resultado->fetch_all(MYSQLI_ASSOC);
 
 foreach ($stock as &$item) {
-    $item['stock_kg'] = floatval($item['stock_kg']);
+    $item['stock_cantidad'] = floatval($item['stock_cantidad']);
 }
 
 echo json_encode($stock);

@@ -7,9 +7,9 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="style.css?v=20260504-6">
+  <link rel="stylesheet" href="style.css?v=20260504-7">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260504-6" defer></script>
+  <script src="logic.js?v=20260504-7" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -69,7 +69,7 @@
               <tr>
                 <th>Tipo</th>
                 <th>Producto</th>
-                <th>Kg</th>
+                <th>Cantidad</th>
                 <th>Monto</th>
                 <th>Hora</th>
               </tr>
@@ -89,7 +89,7 @@
         <article class="form-card">
           <div class="panel-heading">
             <h2>Registrar venta</h2>
-            <p>Carga un nuevo ingreso con producto, kilos y monto total.</p>
+            <p>Carga un nuevo ingreso con producto, cantidad y monto total.</p>
           </div>
 
           <div class="form-grid form-grid--triple">
@@ -98,8 +98,8 @@
               <select id="v-producto"></select>
             </div>
             <div class="form-group">
-              <label for="v-kg">Cantidad (kg)</label>
-              <input type="number" id="v-kg" placeholder="0.0" min="0" step="0.5">
+              <label for="v-cantidad">Cantidad</label>
+              <input type="number" id="v-cantidad" placeholder="0.0" min="0" step="0.5">
             </div>
             <div class="form-group">
               <label for="v-monto">Monto ($)</label>
@@ -131,8 +131,8 @@
               <select id="c-producto"></select>
             </div>
             <div class="form-group">
-              <label for="c-kg">Cantidad (kg)</label>
-              <input type="number" id="c-kg" placeholder="0.0" min="0" step="0.5">
+              <label for="c-cantidad">Cantidad</label>
+              <input type="number" id="c-cantidad" placeholder="0.0" min="0" step="0.5">
             </div>
             <div class="form-group">
               <label for="c-monto">Monto ($)</label>
@@ -216,7 +216,7 @@
                 <th>Hora</th>
                 <th>Tipo</th>
                 <th>Producto</th>
-                <th>Kg</th>
+                <th>Cantidad</th>
                 <th>Monto</th>
               </tr>
             </thead>
@@ -254,7 +254,7 @@
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Producto</th>
-                <th>Kg</th>
+                <th>Cantidad</th>
                 <th>Total</th>
                 <th>Ticket</th>
               </tr>
@@ -281,7 +281,7 @@
         </div>
 
         <p class="stock-note">
-          Los kilos disponibles se calculan sumando las compras y restando las ventas. El aviso aparece cuando un producto tiene menos de 5 kg.
+          La cantidad disponible se calcula sumando las compras y restando las ventas. El aviso aparece cuando un producto tiene menos de 5 en stock.
         </p>
       </article>
     </section>
@@ -303,6 +303,13 @@
               <div class="form-group">
                 <label for="nuevo-codigo">Codigo del producto</label>
                 <input type="text" id="nuevo-codigo" placeholder="Ej: MH-001">
+              </div>
+              <div class="form-group">
+                <label for="nueva-unidad-medida">Unidad de medida</label>
+                <select id="nueva-unidad-medida">
+                  <option value="kg">kg</option>
+                  <option value="unidad">unidad</option>
+                </select>
               </div>
             </div>
 
@@ -348,7 +355,7 @@
     <tr>
       <td><span class="badge" data-field="tipo"></span></td>
       <td data-field="producto"></td>
-      <td data-field="kg"></td>
+      <td data-field="cantidad"></td>
       <td data-field="monto"></td>
       <td class="cell-muted" data-field="hora"></td>
     </tr>
@@ -360,7 +367,7 @@
       <td class="cell-muted" data-field="hora"></td>
       <td><span class="badge" data-field="tipo"></span></td>
       <td data-field="producto"></td>
-      <td data-field="kg"></td>
+      <td data-field="cantidad"></td>
       <td data-field="monto"></td>
     </tr>
   </template>
@@ -371,7 +378,7 @@
       <td data-field="fecha"></td>
       <td class="cell-muted" data-field="hora"></td>
       <td data-field="producto"></td>
-      <td data-field="kg"></td>
+      <td data-field="cantidad"></td>
       <td data-field="monto"></td>
       <td data-field="ticket"></td>
     </tr>
@@ -441,7 +448,7 @@
             <span class="ticket-value" id="ticket-codigo">-</span>
           </div>
           <div class="ticket-line">
-            <span class="ticket-label">Kg:</span>
+            <span class="ticket-label">Cantidad:</span>
             <span class="ticket-value" id="ticket-cantidad">-</span>
           </div>
           <div class="ticket-line ticket-line--total">

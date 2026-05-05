@@ -59,17 +59,41 @@ function fmt(n) {
     return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 }
 
-function fmtKg(value) {
-    const cantidad = Number(value);
-    return `${(Number.isFinite(cantidad) ? cantidad : 0).toFixed(1)} kg`;
+function getUnidadMedida(source) {
+    if (typeof source === 'string') {
+        return source === 'unidad' ? 'unidad' : 'kg';
+    }
+
+    return source && source.unidad_medida === 'unidad' ? 'unidad' : 'kg';
 }
 
-function fmtKgTicket(value) {
+function getUnidadTexto(unidad, value) {
+    if (getUnidadMedida(unidad) !== 'unidad') {
+        return 'kg';
+    }
+
+    return Math.abs(Number(value)) === 1 ? 'unidad' : 'unidades';
+}
+
+function formatCantidadNumero(value, unidad, minFractionDigits, maxFractionDigits) {
     const cantidad = Number(value);
-    return `${(Number.isFinite(cantidad) ? cantidad : 0).toLocaleString('es-AR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    })} kg`;
+    const cantidadSegura = Number.isFinite(cantidad) ? cantidad : 0;
+    const unidadMedida = getUnidadMedida(unidad);
+    const minimumFractionDigits = unidadMedida === 'unidad' ? 0 : minFractionDigits;
+    const maximumFractionDigits = unidadMedida === 'unidad' ? 0 : maxFractionDigits;
+
+    return cantidadSegura.toLocaleString('es-AR', {
+        minimumFractionDigits,
+        maximumFractionDigits
+    });
+}
+
+function fmtCantidad(value, unidad = 'kg') {
+    return `${formatCantidadNumero(value, unidad, 1, 1)} ${getUnidadTexto(unidad, value)}`;
+}
+
+function fmtCantidadTicket(value, unidad = 'kg') {
+    return `${formatCantidadNumero(value, unidad, 2, 2)} ${getUnidadTexto(unidad, value)}`;
 }
 
 function fmtCurrencyTicket(value) {
@@ -145,6 +169,10 @@ function formatearNombreProducto(nombre, codigo) {
     return `${nombre} (${codigo})`;
 }
 
+function getProductoById(productoId) {
+    return productos.find((item) => Number(item.id) === Number(productoId)) || null;
+}
+
 function getTicketCodigo(item) {
     return item && item.codigo_producto ? item.codigo_producto : (item && item.codigo ? item.codigo : '');
 }
@@ -156,8 +184,9 @@ function buildTicketData(item) {
         hora: item && item.hora ? item.hora : '-',
         producto: item && item.producto ? item.producto : '-',
         codigo: getTicketCodigo(item) || 'Sin codigo',
-        kg: item && item.kg ? item.kg : 0,
-        monto: item && item.monto ? item.monto : 0
+        unidad_medida: getUnidadMedida(item),
+        cantidad: item && item.cantidad != null ? item.cantidad : (item && item.kg != null ? item.kg : 0),
+        monto: item && item.monto != null ? item.monto : 0
     };
 }
 
@@ -324,21 +353,36 @@ function setBadge(element, tipo) {
 function createOption(producto) {
     const option = document.createElement('option');
     option.value = producto.id;
-    option.textContent = formatearNombreProducto(producto.nombre, producto.codigo);
+    option.textContent = `${formatearNombreProducto(producto.nombre, producto.codigo)} - ${getUnidadMedida(producto)}`;
     return option;
+}
+
+function actualizarCampoCantidad(prefix) {
+    const input = document.getElementById(`${prefix}-cantidad`);
+
+    if (!input) {
+        return;
+    }
+
+    const select = document.getElementById(`${prefix}-producto`);
+    const producto = select ? getProductoById(parseInt(select.value, 10)) : null;
+    const unidadMedida = getUnidadMedida(producto);
+
+    input.step = unidadMedida === 'unidad' ? '1' : '0.5';
+    input.placeholder = unidadMedida === 'unidad' ? '0' : '0.0';
 }
 
 function createInicioRow(item) {
     const row = cloneTemplate('tpl-inicio-row');
     const tipo = row.querySelector('[data-field="tipo"]');
     const producto = row.querySelector('[data-field="producto"]');
-    const kg = row.querySelector('[data-field="kg"]');
+    const cantidad = row.querySelector('[data-field="cantidad"]');
     const monto = row.querySelector('[data-field="monto"]');
     const hora = row.querySelector('[data-field="hora"]');
 
     setBadge(tipo, item.tipo);
     producto.textContent = formatearNombreProducto(item.producto, item.codigo);
-    kg.textContent = `${item.kg} kg`;
+    cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
     monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
     monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
     hora.textContent = item.hora;
@@ -352,14 +396,14 @@ function createBalanceRow(item) {
     const hora = row.querySelector('[data-field="hora"]');
     const tipo = row.querySelector('[data-field="tipo"]');
     const producto = row.querySelector('[data-field="producto"]');
-    const kg = row.querySelector('[data-field="kg"]');
+    const cantidad = row.querySelector('[data-field="cantidad"]');
     const monto = row.querySelector('[data-field="monto"]');
 
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
     setBadge(tipo, item.tipo);
     producto.textContent = formatearNombreProducto(item.producto, item.codigo);
-    kg.textContent = `${item.kg} kg`;
+    cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
     monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
     monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
 
@@ -372,7 +416,7 @@ function createTicketRow(item) {
     const fecha = row.querySelector('[data-field="fecha"]');
     const hora = row.querySelector('[data-field="hora"]');
     const producto = row.querySelector('[data-field="producto"]');
-    const kg = row.querySelector('[data-field="kg"]');
+    const cantidad = row.querySelector('[data-field="cantidad"]');
     const monto = row.querySelector('[data-field="monto"]');
     const ticket = row.querySelector('[data-field="ticket"]');
     const button = document.createElement('button');
@@ -381,7 +425,7 @@ function createTicketRow(item) {
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
     producto.textContent = formatearNombreProducto(item.producto, getTicketCodigo(item));
-    kg.textContent = fmtKg(item.kg);
+    cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
     monto.textContent = fmtCurrencyTicket(item.monto);
     monto.className = 'amount positive';
     ticket.className = 'ticket-cell';
@@ -404,10 +448,10 @@ function createStockRow(item) {
     const cantidad = row.querySelector('[data-field="cantidad"]');
     const tag = row.querySelector('[data-field="tag"]');
     const stock = row.querySelector('.stock-kg');
-    const alerta = Number(item.stock_kg) < 5;
+    const alerta = Number(item.stock_cantidad) < 5;
 
     nombre.textContent = formatearNombreProducto(item.nombre, item.codigo);
-    cantidad.textContent = fmtKg(item.stock_kg);
+    cantidad.textContent = fmtCantidad(item.stock_cantidad, item.unidad_medida);
 
     if (alerta) {
         stock.classList.add('alerta');
@@ -430,9 +474,9 @@ function createProductoRow(producto) {
     nombre.textContent = producto.nombre;
     codigo.textContent = producto.codigo ? `(${producto.codigo})` : '';
     codigo.classList.toggle('is-hidden', !producto.codigo);
-    stock.textContent = `Stock actual: ${fmtKg(producto.stock_kg)}`;
+    stock.textContent = `Stock actual: ${fmtCantidad(producto.stock_cantidad, producto.unidad_medida)}`;
     stock.classList.remove('product-stock--high', 'product-stock--medium', 'product-stock--empty');
-    stock.classList.add(getProductStockClass(producto.stock_kg));
+    stock.classList.add(getProductStockClass(producto.stock_cantidad));
     button.addEventListener('click', () => {
         eliminarProducto(producto.id, formatearNombreProducto(producto.nombre, producto.codigo));
     });
@@ -586,7 +630,7 @@ function openTicketModal(item) {
     document.getElementById('ticket-hora').textContent = ticketActual.hora;
     document.getElementById('ticket-producto').textContent = ticketActual.producto;
     document.getElementById('ticket-codigo').textContent = ticketActual.codigo;
-    document.getElementById('ticket-cantidad').textContent = fmtKgTicket(ticketActual.kg);
+    document.getElementById('ticket-cantidad').textContent = fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida);
     document.getElementById('ticket-total').textContent = fmtCurrencyTicket(ticketActual.monto);
 
     modal.classList.remove('is-hidden');
@@ -657,7 +701,7 @@ function downloadTicketPdf() {
 
     drawLine('Producto:', ticketActual.producto);
     drawLine('Codigo:', ticketActual.codigo);
-    drawLine('Kg:', fmtKgTicket(ticketActual.kg));
+    drawLine('Cantidad:', fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida));
     drawLine('Monto total:', fmtCurrencyTicket(ticketActual.monto), true);
 
     doc.save(getTicketFileName(ticketActual));
@@ -694,6 +738,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (agregarBtn) {
         agregarBtn.addEventListener('click', agregarProducto);
     }
+
+    ['v-producto', 'c-producto'].forEach((id) => {
+        const select = document.getElementById(id);
+        if (!select) {
+            return;
+        }
+
+        select.addEventListener('change', () => {
+            actualizarCampoCantidad(id.startsWith('v-') ? 'v' : 'c');
+        });
+    });
 
     ['buscar-producto', 'buscar-codigo'].forEach((id) => {
         const input = document.getElementById(id);
@@ -770,6 +825,9 @@ async function cargarProductosEnSelects() {
 
             replaceChildren(select, productos.map(createOption));
         });
+
+        actualizarCampoCantidad('v');
+        actualizarCampoCantidad('c');
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar productos.'), 'error');
@@ -779,17 +837,24 @@ async function cargarProductosEnSelects() {
 async function registrar(tipo) {
     const prefix = tipo === 'venta' ? 'v' : 'c';
     const producto_id = parseInt(document.getElementById(`${prefix}-producto`).value, 10);
-    const kg = parseFloat(document.getElementById(`${prefix}-kg`).value) || 0;
+    const cantidad = parseFloat(document.getElementById(`${prefix}-cantidad`).value) || 0;
     const monto = parseFloat(document.getElementById(`${prefix}-monto`).value) || 0;
     const observacion = document.getElementById(`${prefix}-obs`).value.trim();
+    const productoSeleccionado = getProductoById(producto_id);
+    const unidadMedida = getUnidadMedida(productoSeleccionado);
 
     if (!producto_id) {
         showToast('Selecciona un producto.', 'error');
         return;
     }
 
-    if (kg <= 0 || monto <= 0) {
+    if (cantidad <= 0 || monto <= 0) {
         showToast('Completa cantidad y monto.', 'error');
+        return;
+    }
+
+    if (unidadMedida === 'unidad' && !Number.isInteger(cantidad)) {
+        showToast('Para productos por unidad, la cantidad debe ser entera.', 'error');
         return;
     }
 
@@ -797,7 +862,7 @@ async function registrar(tipo) {
         const data = await fetchJson(API.movimientos, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo, producto_id, kg, monto, observacion })
+            body: JSON.stringify({ tipo, producto_id, cantidad, monto, observacion })
         });
 
         if (data && data.error) {
@@ -805,7 +870,7 @@ async function registrar(tipo) {
             return;
         }
 
-        document.getElementById(`${prefix}-kg`).value = '';
+        document.getElementById(`${prefix}-cantidad`).value = '';
         document.getElementById(`${prefix}-monto`).value = '';
         document.getElementById(`${prefix}-obs`).value = '';
 
@@ -919,8 +984,10 @@ async function cargarProductos() {
 async function agregarProducto() {
     const input = document.getElementById('nuevo-producto');
     const codigoInput = document.getElementById('nuevo-codigo');
+    const unidadInput = document.getElementById('nueva-unidad-medida');
     const nombre = input.value.trim();
     const codigo = codigoInput.value.trim();
+    const unidad_medida = unidadInput ? unidadInput.value : 'kg';
 
     if (!nombre) {
         showToast('Escribi el nombre del producto.', 'error');
@@ -936,7 +1003,7 @@ async function agregarProducto() {
         const data = await fetchJson(API.productos, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, codigo })
+            body: JSON.stringify({ nombre, codigo, unidad_medida })
         });
 
         if (data && data.error) {
@@ -946,6 +1013,9 @@ async function agregarProducto() {
 
         input.value = '';
         codigoInput.value = '';
+        if (unidadInput) {
+            unidadInput.value = 'kg';
+        }
         showToast('Producto agregado.', 'venta');
         cargarProductos();
         cargarProductosEnSelects();

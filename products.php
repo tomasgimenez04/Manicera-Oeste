@@ -20,10 +20,18 @@ if ($metodo === 'GET') {
             productos.id,
             productos.nombre,
             COALESCE(productos.codigo, '') AS codigo,
-            COALESCE(v_stock.stock_kg, 0) AS stock_kg
+            COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
+            COALESCE(SUM(
+                CASE
+                    WHEN movimientos.tipo = 'compra' THEN movimientos.cantidad
+                    WHEN movimientos.tipo = 'venta' THEN -movimientos.cantidad
+                    ELSE 0
+                END
+            ), 0) AS stock_cantidad
         FROM productos
-        LEFT JOIN v_stock ON v_stock.id = productos.id
+        LEFT JOIN movimientos ON movimientos.producto_id = productos.id
         WHERE productos.activo = 1
+        GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida
         ORDER BY productos.nombre ASC
     ");
 
@@ -36,7 +44,7 @@ if ($metodo === 'GET') {
     $productos = $resultado->fetch_all(MYSQLI_ASSOC);
 
     foreach ($productos as &$producto) {
-        $producto['stock_kg'] = floatval($producto['stock_kg']);
+        $producto['stock_cantidad'] = floatval($producto['stock_cantidad']);
     }
 
     echo json_encode($productos);
@@ -47,6 +55,7 @@ if ($metodo === 'POST') {
     $body = json_decode(file_get_contents('php://input'), true);
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
+    $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
 
     if ($nombre === '') {
         http_response_code(400);
@@ -57,6 +66,12 @@ if ($metodo === 'POST') {
     if ($codigo === '') {
         http_response_code(400);
         echo json_encode(['error' => 'El codigo del producto es obligatorio.']);
+        exit;
+    }
+
+    if (!in_array($unidad_medida, ['kg', 'unidad'], true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'La unidad de medida debe ser "kg" o "unidad".']);
         exit;
     }
 
@@ -88,15 +103,16 @@ if ($metodo === 'POST') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('INSERT INTO productos (nombre, codigo) VALUES (?, ?)');
-    $stmt->bind_param('ss', $nombre, $codigo);
+    $stmt = $conn->prepare('INSERT INTO productos (nombre, codigo, unidad_medida) VALUES (?, ?, ?)');
+    $stmt->bind_param('sss', $nombre, $codigo, $unidad_medida);
 
     if ($stmt->execute()) {
         echo json_encode([
             'ok' => true,
             'id' => $conn->insert_id,
             'nombre' => $nombre,
-            'codigo' => $codigo
+            'codigo' => $codigo,
+            'unidad_medida' => $unidad_medida
         ]);
     } else {
         http_response_code(500);

@@ -35,18 +35,19 @@ switch ($filtro) {
 
 $sql = "
     SELECT
-        v_movimientos.id,
-        DATE_FORMAT(v_movimientos.fecha, '%d/%m/%Y') AS fecha,
-        DATE_FORMAT(v_movimientos.fecha, '%H:%i') AS hora,
-        v_movimientos.producto,
+        movimientos.id,
+        DATE_FORMAT(movimientos.fecha, '%d/%m/%Y') AS fecha,
+        DATE_FORMAT(movimientos.fecha, '%H:%i') AS hora,
+        productos.nombre AS producto,
         COALESCE(productos.codigo, '') AS codigo_producto,
-        v_movimientos.kg,
-        v_movimientos.monto
-    FROM v_movimientos
-    LEFT JOIN productos ON productos.id = v_movimientos.producto_id
-    WHERE v_movimientos.tipo = 'venta'
-      AND DATE(v_movimientos.fecha) >= $desde
-    ORDER BY v_movimientos.fecha DESC
+        COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
+        movimientos.cantidad,
+        movimientos.monto
+    FROM movimientos
+    LEFT JOIN productos ON productos.id = movimientos.producto_id
+    WHERE movimientos.tipo = 'venta'
+      AND DATE(movimientos.fecha) >= $desde
+    ORDER BY movimientos.fecha DESC
 ";
 
 $resultado = $conn->query($sql);
@@ -60,7 +61,7 @@ if (!$resultado) {
 $tickets = $resultado->fetch_all(MYSQLI_ASSOC);
 
 foreach ($tickets as &$ticket) {
-    $ticket['kg'] = floatval($ticket['kg']);
+    $ticket['cantidad'] = floatval($ticket['cantidad']);
     $ticket['monto'] = floatval($ticket['monto']);
 }
 

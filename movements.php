@@ -32,20 +32,21 @@ if ($metodo === 'GET') {
 
     $sql = "
         SELECT
-            v_movimientos.id,
-            v_movimientos.tipo,
-            v_movimientos.producto,
-            v_movimientos.producto_id,
+            movimientos.id,
+            movimientos.tipo,
+            productos.nombre AS producto,
+            movimientos.producto_id,
             COALESCE(productos.codigo, '') AS codigo,
-            v_movimientos.kg,
-            v_movimientos.monto,
-            v_movimientos.observacion,
-            DATE_FORMAT(v_movimientos.fecha, '%d/%m/%Y') AS fecha,
-            DATE_FORMAT(v_movimientos.fecha, '%H:%i') AS hora
-        FROM v_movimientos
-        LEFT JOIN productos ON productos.id = v_movimientos.producto_id
-        WHERE DATE(v_movimientos.fecha) >= $desde
-        ORDER BY v_movimientos.fecha DESC
+            COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
+            movimientos.cantidad,
+            movimientos.monto,
+            movimientos.observacion,
+            DATE_FORMAT(movimientos.fecha, '%d/%m/%Y') AS fecha,
+            DATE_FORMAT(movimientos.fecha, '%H:%i') AS hora
+        FROM movimientos
+        LEFT JOIN productos ON productos.id = movimientos.producto_id
+        WHERE DATE(movimientos.fecha) >= $desde
+        ORDER BY movimientos.fecha DESC
     ";
 
     $resultado = $conn->query($sql);
@@ -59,7 +60,7 @@ if ($metodo === 'GET') {
     $movimientos = $resultado->fetch_all(MYSQLI_ASSOC);
 
     foreach ($movimientos as &$movimiento) {
-        $movimiento['kg'] = floatval($movimiento['kg']);
+        $movimiento['cantidad'] = floatval($movimiento['cantidad']);
         $movimiento['monto'] = floatval($movimiento['monto']);
     }
 
@@ -72,7 +73,7 @@ if ($metodo === 'POST') {
 
     $tipo = isset($body['tipo']) ? trim($body['tipo']) : '';
     $producto_id = isset($body['producto_id']) ? intval($body['producto_id']) : 0;
-    $kg = isset($body['kg']) ? floatval($body['kg']) : 0;
+    $cantidad = isset($body['cantidad']) ? floatval($body['cantidad']) : (isset($body['kg']) ? floatval($body['kg']) : 0);
     $monto = isset($body['monto']) ? floatval($body['monto']) : 0;
     $observacion = isset($body['observacion']) ? trim($body['observacion']) : null;
 
@@ -88,9 +89,9 @@ if ($metodo === 'POST') {
         exit;
     }
 
-    if ($kg <= 0) {
+    if ($cantidad <= 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'La cantidad en kg debe ser mayor a 0.']);
+        echo json_encode(['error' => 'La cantidad debe ser mayor a 0.']);
         exit;
     }
 
@@ -101,10 +102,10 @@ if ($metodo === 'POST') {
     }
 
     $stmt = $conn->prepare('
-        INSERT INTO movimientos (tipo, producto_id, kg, monto, observacion)
+        INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
         VALUES (?, ?, ?, ?, ?)
     ');
-    $stmt->bind_param('sidds', $tipo, $producto_id, $kg, $monto, $observacion);
+    $stmt->bind_param('sidds', $tipo, $producto_id, $cantidad, $monto, $observacion);
 
     if ($stmt->execute()) {
         echo json_encode([
