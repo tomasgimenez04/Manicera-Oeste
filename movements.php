@@ -85,7 +85,7 @@ if ($metodo === 'POST') {
 
     if ($producto_id <= 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'Producto invalido.']);
+        echo json_encode(['error' => 'Producto inválido.']);
         exit;
     }
 
@@ -139,5 +139,5 @@ if ($metodo === 'POST') {
 }
 
 http_response_code(405);
-echo json_encode(['error' => 'Metodo no permitido.']);
+echo json_encode(['error' => 'Método no permitido.']);
 ?>

@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['error' => 'Metodo no permitido.']);
+    echo json_encode(['error' => 'Método no permitido.']);
     exit;
 }
 
@@ -48,7 +48,7 @@ try {
     $resultado = $conn->query('SELECT COALESCE(MAX(numero), 0) + 1 AS siguiente FROM facturas');
 
     if (!$resultado) {
-        throw new Exception('No se pudo obtener el numero correlativo de factura.');
+        throw new Exception('No se pudo obtener el número correlativo de factura.');
     }
 
     $fila = $resultado->fetch_assoc();

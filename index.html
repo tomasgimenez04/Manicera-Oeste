@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260506-1">
+  <link rel="stylesheet" href="style.css?v=20260506-2">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260506-1" defer></script>
+  <script src="logic.js?v=20260506-2" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -24,17 +24,17 @@
       <span class="current-date" id="fecha-hoy"></span>
     </header>
 
-    <!-- Navegacion principal -->
+    <!-- Navegación principal -->
     <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
-      <button class="nav-btn" type="button" data-section="facturacion">Facturacion</button>
+      <button class="nav-btn" type="button" data-section="facturacion">Facturación</button>
       <button class="nav-btn" type="button" data-section="stock">Stock</button>
       <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
 
-    <!-- Secciones de la aplicacion -->
+    <!-- Secciones de la aplicación -->
     <section id="inicio" class="section active">
       <div class="summary-grid">
         <article class="summary-card">
@@ -65,7 +65,7 @@
       <article class="movements-card">
         <div class="panel-heading">
           <h2>Historial de movimientos</h2>
-          <p>Vista rapida de compras y ventas registradas durante el dia.</p>
+          <p>Vista rápida de compras y ventas registradas durante el día.</p>
         </div>
 
         <div class="table-shell">
@@ -81,7 +81,7 @@
             </thead>
             <tbody id="tabla-inicio">
               <tr>
-                <td colspan="5" class="empty">Aun no hay movimientos registrados.</td>
+                <td colspan="5" class="empty">Aún no hay movimientos registrados.</td>
               </tr>
             </tbody>
           </table>
@@ -125,7 +125,7 @@
               <label
                 for="v-monto"
                 class="tooltip-label"
-                data-tooltip="El monto se calcula automaticamente segun la cantidad ingresada."
+                data-tooltip="El monto se calcula automáticamente según la cantidad ingresada."
               >Monto ($)</label>
               <input type="number" id="v-monto" placeholder="0" min="0">
             </div>
@@ -182,7 +182,7 @@
           <div class="form-grid form-grid--single">
             <div class="form-group">
               <label for="c-obs">Observaciones (opcional)</label>
-              <input type="text" id="c-obs" placeholder="Ej: proveedor Cordoba, pago a cuenta...">
+              <input type="text" id="c-obs" placeholder="Ej: proveedor Córdoba, pago a cuenta...">
             </div>
           </div>
 
@@ -197,7 +197,7 @@
       <article class="panel-card">
         <div class="panel-heading panel-heading--split">
           <div>
-            <h2>Balance del periodo</h2>
+            <h2>Balance del período</h2>
             <p>Consulta ingresos, egresos y cantidad de movimientos.</p>
           </div>
 
@@ -236,7 +236,7 @@
         </div>
 
         <div class="balance-strip">
-          <span>Balance del periodo</span>
+          <span>Balance del período</span>
           <strong class="balance-total amount positive" id="b-total">$0</strong>
         </div>
       </article>
@@ -244,7 +244,7 @@
       <article class="movements-card">
         <div class="panel-heading">
           <h2>Detalle de movimientos</h2>
-          <p>Registro completo del periodo seleccionado.</p>
+          <p>Registro completo del período seleccionado.</p>
         </div>
 
         <div class="table-shell">
@@ -261,7 +261,7 @@
             </thead>
             <tbody id="tabla-balance">
               <tr>
-                <td colspan="6" class="empty">Sin movimientos en este periodo.</td>
+                <td colspan="6" class="empty">Sin movimientos en este período.</td>
               </tr>
             </tbody>
           </table>
@@ -273,7 +273,7 @@
       <article class="panel-card">
         <div class="panel-heading panel-heading--split">
           <div>
-            <h2>Facturacion</h2>
+            <h2>Facturación</h2>
             <p>Selecciona ventas registradas para generar una factura interna en PDF.</p>
           </div>
 
@@ -298,7 +298,7 @@
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Producto</th>
-                <th>Cod.</th>
+                <th>Cód.</th>
                 <th>Cant.</th>
                 <th>Total</th>
                 <th class="facturacion-col-check">SEL.</th>
@@ -306,7 +306,7 @@
             </thead>
             <tbody id="tabla-facturacion">
               <tr>
-                <td colspan="7" class="empty">Sin ventas en este periodo.</td>
+                <td colspan="7" class="empty">Sin ventas en este período.</td>
               </tr>
             </tbody>
           </table>
@@ -322,11 +322,11 @@
       <article class="panel-card">
         <div class="panel-heading">
           <h2>Stock actual</h2>
-          <p>El stock se calcula automaticamente a partir de las compras y ventas registradas.</p>
+          <p>El stock se calcula automáticamente a partir de las compras y ventas registradas.</p>
         </div>
 
         <div id="stock-lista" class="list-surface">
-          <p class="empty">Sin datos de stock aun.</p>
+          <p class="empty">Sin datos de stock aún.</p>
         </div>
 
         <p class="stock-note">
@@ -347,10 +347,10 @@
             <div class="product-form-column">
               <div class="form-group">
                 <label for="nuevo-producto">Nombre del producto</label>
-                <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
+                <input type="text" id="nuevo-producto" placeholder="Ej: Maní hervido">
               </div>
               <div class="form-group">
-                <label for="nuevo-codigo">Codigo del producto</label>
+                <label for="nuevo-codigo">Código del producto</label>
                 <input type="text" id="nuevo-codigo" placeholder="Ej: MH-001">
               </div>
             </div>
@@ -399,7 +399,7 @@
     </section>
   </main>
 
-  <!-- Templates para render dinamico -->
+  <!-- Templates para render dinámico -->
   <template id="tpl-inicio-row">
     <tr>
       <td><span class="badge" data-field="tipo"></span></td>
@@ -484,10 +484,10 @@
         <div class="form-grid form-grid--single form-grid--tight">
           <div class="form-group">
             <label for="editar-producto-nombre">Nombre del producto</label>
-            <input type="text" id="editar-producto-nombre" placeholder="Ej: Mani hervido">
+            <input type="text" id="editar-producto-nombre" placeholder="Ej: Maní hervido">
           </div>
           <div class="form-group">
-            <label for="editar-producto-codigo">Codigo del producto</label>
+            <label for="editar-producto-codigo">Código del producto</label>
             <input type="text" id="editar-producto-codigo" placeholder="Ej: MH-001">
           </div>
           <div class="form-group">

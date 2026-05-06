@@ -163,7 +163,7 @@ async function fetchJson(url, options = {}) {
         try {
             data = JSON.parse(text);
         } catch (error) {
-            throw new Error(`La respuesta de ${url} no es JSON valido.`);
+            throw new Error(`La respuesta de ${url} no es JSON válido.`);
         }
     }
 
@@ -321,7 +321,7 @@ function createLoadMoreTableRow(colspan, visible, total, onClick) {
     shell.className = 'load-more-shell';
     shell.append(
         createLoadMoreMeta(visible, total),
-        createLoadMoreButton('Ver mas', onClick)
+        createLoadMoreButton('Ver más', onClick)
     );
 
     cell.appendChild(shell);
@@ -336,7 +336,7 @@ function createLoadMoreListBlock(visible, total, onClick) {
     wrapper.className = 'load-more-shell load-more-shell--list';
     wrapper.append(
         createLoadMoreMeta(visible, total),
-        createLoadMoreButton('Ver mas', onClick)
+        createLoadMoreButton('Ver más', onClick)
     );
 
     return wrapper;
@@ -861,7 +861,7 @@ function renderInicioTable() {
         items: movimientosInicio,
         key: 'inicio',
         colspan: 5,
-        emptyMessage: 'Aun no hay movimientos hoy.',
+        emptyMessage: 'Aún no hay movimientos hoy.',
         createRow: createInicioRow,
         rerender: renderInicioTable
     });
@@ -878,7 +878,7 @@ function renderBalanceTable() {
         items: movimientosBalance,
         key: 'balance',
         colspan: 6,
-        emptyMessage: 'Sin movimientos en este periodo.',
+        emptyMessage: 'Sin movimientos en este período.',
         createRow: createBalanceRow,
         rerender: renderBalanceTable
     });
@@ -895,7 +895,7 @@ function renderFacturacionTable() {
         items: ventasFacturacion,
         key: 'facturacion',
         colspan: 7,
-        emptyMessage: 'Sin ventas en este periodo.',
+        emptyMessage: 'Sin ventas en este período.',
         createRow: createFacturacionRow,
         rerender: renderFacturacionTable
     });
@@ -911,7 +911,7 @@ function renderStockList() {
         container: lista,
         items: stockActual,
         key: 'stock',
-        emptyMessage: 'Sin datos de stock aun.',
+        emptyMessage: 'Sin datos de stock aún.',
         createRow: createStockRow,
         rerender: renderStockList
     });
@@ -975,17 +975,17 @@ async function guardarCambiosProducto() {
     const precio_unitario = parseFloat(precioInput.value) || 0;
 
     if (!nombre) {
-        showToast('Escribi el nombre del producto.', 'error');
+        showToast('Escribí el nombre del producto.', 'error');
         return;
     }
 
     if (!codigo) {
-        showToast('Escribi el codigo del producto.', 'error');
+        showToast('Escribí el código del producto.', 'error');
         return;
     }
 
     if (precio_unitario <= 0) {
-        showToast('Escribi un precio mayor a 0.', 'error');
+        showToast('Escribí un precio mayor a 0.', 'error');
         return;
     }
 
@@ -1026,7 +1026,7 @@ function drawInvoicePdf(doc, factura) {
     const centerX = pageWidth / 2;
     const qtyX = marginX;
     const productX = 50;
-    const unitX = 160;
+    const unitX = 154;
     const totalX = contentRight;
     const productWidth = unitX - productX - 14;
     let y = 20;
@@ -1516,7 +1516,7 @@ async function cargarFacturacion() {
         updateFacturacionSelectionSummary();
     } catch (error) {
         console.error(error);
-        showToast(getErrorMessage(error, 'Error al cargar ventas para facturacion.'), 'error');
+        showToast(getErrorMessage(error, 'Error al cargar ventas para facturación.'), 'error');
     }
 }
 
@@ -1553,17 +1553,17 @@ async function agregarProducto() {
     const precio_unitario = precioInput ? parseFloat(precioInput.value) || 0 : 0;
 
     if (!nombre) {
-        showToast('Escribi el nombre del producto.', 'error');
+        showToast('Escribí el nombre del producto.', 'error');
         return;
     }
 
     if (!codigo) {
-        showToast('Escribi el codigo del producto.', 'error');
+        showToast('Escribí el código del producto.', 'error');
         return;
     }
 
     if (precio_unitario <= 0) {
-        showToast('Escribi un precio mayor a 0.', 'error');
+        showToast('Escribí un precio mayor a 0.', 'error');
         return;
     }
 

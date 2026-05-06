@@ -62,13 +62,13 @@ if ($metodo === 'POST') {
 
     if ($nombre === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'El nombre del producto no puede estar vacio.']);
+        echo json_encode(['error' => 'El nombre del producto no puede estar vacío.']);
         exit;
     }
 
     if ($codigo === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'El codigo del producto es obligatorio.']);
+        echo json_encode(['error' => 'El código del producto es obligatorio.']);
         exit;
     }
 
@@ -105,7 +105,7 @@ if ($metodo === 'POST') {
 
     if ($stmt->num_rows > 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'Ya existe un producto con ese codigo.']);
+        echo json_encode(['error' => 'Ya existe un producto con ese código.']);
         $stmt->close();
         exit;
     }
@@ -143,19 +143,19 @@ if ($metodo === 'PUT') {
 
     if ($id <= 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'ID de producto invalido.']);
+        echo json_encode(['error' => 'ID de producto inválido.']);
         exit;
     }
 
     if ($nombre === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'El nombre del producto no puede estar vacio.']);
+        echo json_encode(['error' => 'El nombre del producto no puede estar vacío.']);
         exit;
     }
 
     if ($codigo === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'El codigo del producto es obligatorio.']);
+        echo json_encode(['error' => 'El código del producto es obligatorio.']);
         exit;
     }
 
@@ -206,7 +206,7 @@ if ($metodo === 'PUT') {
 
     if ($stmt->num_rows > 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'Ya existe un producto con ese codigo.']);
+        echo json_encode(['error' => 'Ya existe un producto con ese código.']);
         $stmt->close();
         exit;
     }
@@ -240,7 +240,7 @@ if ($metodo === 'DELETE') {
 
     if ($id <= 0) {
         http_response_code(400);
-        echo json_encode(['error' => 'ID de producto invalido.']);
+        echo json_encode(['error' => 'ID de producto inválido.']);
         exit;
     }
 
@@ -259,5 +259,5 @@ if ($metodo === 'DELETE') {
 }
 
 http_response_code(405);
-echo json_encode(['error' => 'Metodo no permitido.']);
+echo json_encode(['error' => 'Método no permitido.']);
 ?>
