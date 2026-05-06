@@ -24,7 +24,7 @@ $resultado = $conn->query("
         productos.nombre,
         COALESCE(productos.codigo, '') AS codigo,
         COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
-        COALESCE(SUM(
+        COALESCE(productos.stock_base, 0) + COALESCE(SUM(
             CASE
                 WHEN movimientos.tipo = 'compra' THEN movimientos.cantidad
                 WHEN movimientos.tipo = 'venta' THEN -movimientos.cantidad
@@ -34,7 +34,7 @@ $resultado = $conn->query("
     FROM productos
     LEFT JOIN movimientos ON movimientos.producto_id = productos.id
     WHERE productos.activo = 1
-    GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida
+    GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida, productos.stock_base
     ORDER BY stock_cantidad DESC, productos.nombre ASC
 ");
 

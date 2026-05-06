@@ -27,11 +27,19 @@
   --green: var(--success);
   --bg-primary: var(--bg);
   --bg-secondary: var(--surface);
+  --bg-tertiary: #f9fafb;
   --text-primary: var(--text);
   --text-secondary: var(--muted);
+  --text-hint: #9ca3af;
   --border-light: var(--border);
   --border-mid: #c3cbd6;
+  --border-strong: #d1d5db;
   --red: var(--danger);
+  --red-light: var(--danger-soft);
+  --red-dark: #b91c1c;
+  --green-light: var(--success-soft);
+  --green-dark: #047857;
+  --blue: #2563eb;
 }
 
 html {
@@ -186,7 +194,7 @@ section {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-#registrar .dashboard-grid--two {
+.section--movements .dashboard-grid--two {
   align-items: stretch;
 }
 
@@ -271,21 +279,21 @@ section {
   gap: 22px;
 }
 
-#registrar .form-card {
+.section--movements .form-card {
   display: flex;
   flex-direction: column;
   min-height: 520px;
 }
 
-#registrar .form-card .panel-heading {
+.section--movements .form-card .panel-heading {
   margin-bottom: 24px;
 }
 
-#registrar .form-card .form-grid--single {
+.section--movements .form-card .form-grid--single {
   margin-bottom: auto;
 }
 
-#registrar .form-card .btn {
+.section--movements .form-card .btn {
   margin-top: 28px;
 }
 
@@ -750,6 +758,15 @@ textarea:focus {
   font-size: 14px;
 }
 
+.salary-register-btn {
+  background: var(--blue);
+  border-color: var(--blue);
+}
+
+.salary-register-btn:hover {
+  background: #1d4ed8;
+}
+
 /* Tablas */
 .table-shell {
   overflow-x: auto;
@@ -890,6 +907,126 @@ textarea:focus {
   color: var(--green);
 }
 
+.salary-summary-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.salary-summary-item {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.salary-summary-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.salary-summary-value {
+  display: block;
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.salary-summary-value--danger {
+  color: var(--red-dark);
+}
+
+.salary-summary-value--success {
+  color: var(--green-dark);
+}
+
+.salary-summary-value--primary {
+  color: var(--text-primary);
+}
+
+.salary-table th:last-child,
+.salary-table td:last-child {
+  text-align: left;
+}
+
+.salary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.salary-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.salary-status--pending {
+  background: var(--red-light);
+  color: var(--red-dark);
+}
+
+.salary-status--paid {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.salary-pay-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.salary-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.salary-modal.is-hidden {
+  display: none;
+}
+
+.salary-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.salary-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 760px);
+}
+
+.salary-modal__card {
+  padding: 26px;
+  border-radius: 22px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+}
+
+.salary-modal__heading {
+  margin-bottom: 18px;
+}
+
+.salary-history-table th:last-child,
+.salary-history-table td:last-child {
+  text-align: right;
+}
+
 .load-more-cell {
   padding: 18px 12px 8px;
   border-bottom: none !important;
@@ -962,6 +1099,16 @@ textarea:focus {
 .badge.venta {
   background: var(--success-soft);
   color: #047857;
+}
+
+.badge.ingreso {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.badge.egreso {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
 }
 
 .amount {
@@ -1364,7 +1511,7 @@ textarea:focus {
     padding: 22px 18px;
   }
 
-  #registrar .form-card {
+  .section--movements .form-card {
     min-height: auto;
   }
 

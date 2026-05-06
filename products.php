@@ -22,7 +22,7 @@ if ($metodo === 'GET') {
             COALESCE(productos.codigo, '') AS codigo,
             COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
             COALESCE(productos.precio_unitario, 0) AS precio_unitario,
-            COALESCE(SUM(
+            COALESCE(productos.stock_base, 0) + COALESCE(SUM(
                 CASE
                     WHEN movimientos.tipo = 'compra' THEN movimientos.cantidad
                     WHEN movimientos.tipo = 'venta' THEN -movimientos.cantidad
@@ -32,7 +32,7 @@ if ($metodo === 'GET') {
         FROM productos
         LEFT JOIN movimientos ON movimientos.producto_id = productos.id
         WHERE productos.activo = 1
-        GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida, productos.precio_unitario
+        GROUP BY productos.id, productos.nombre, productos.codigo, productos.unidad_medida, productos.precio_unitario, productos.stock_base
         ORDER BY productos.nombre ASC
     ");
 
@@ -58,6 +58,7 @@ if ($metodo === 'POST') {
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
     $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
+    $stock_actual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
     $precio_unitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
 
     if ($nombre === '') {
@@ -78,9 +79,15 @@ if ($metodo === 'POST') {
         exit;
     }
 
-    if ($precio_unitario <= 0) {
+    if (in_array($unidad_medida, ['unidad', 'bandeja'], true) && floor($stock_actual) != $stock_actual) {
         http_response_code(400);
-        echo json_encode(['error' => 'El precio debe ser mayor a 0.']);
+        echo json_encode(['error' => 'El stock debe ser entero para esa unidad de medida.']);
+        exit;
+    }
+
+    if ($precio_unitario < 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'El precio debe ser mayor o igual a 0.']);
         exit;
     }
 
@@ -139,6 +146,7 @@ if ($metodo === 'PUT') {
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
     $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
+    $stock_actual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
     $precio_unitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
 
     if ($id <= 0) {
@@ -165,9 +173,15 @@ if ($metodo === 'PUT') {
         exit;
     }
 
-    if ($precio_unitario <= 0) {
+    if (in_array($unidad_medida, ['unidad', 'bandeja'], true) && floor($stock_actual) != $stock_actual) {
         http_response_code(400);
-        echo json_encode(['error' => 'El precio debe ser mayor a 0.']);
+        echo json_encode(['error' => 'El stock debe ser entero para esa unidad de medida.']);
+        exit;
+    }
+
+    if ($precio_unitario < 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'El precio debe ser mayor o igual a 0.']);
         exit;
     }
 
@@ -184,6 +198,36 @@ if ($metodo === 'PUT') {
     }
 
     $stmt->close();
+
+    $stmt = $conn->prepare("
+        SELECT
+            productos.id,
+            COALESCE(SUM(
+                CASE
+                    WHEN movimientos.tipo = 'compra' THEN movimientos.cantidad
+                    WHEN movimientos.tipo = 'venta' THEN -movimientos.cantidad
+                    ELSE 0
+                END
+            ), 0) AS movimientos_delta
+        FROM productos
+        LEFT JOIN movimientos ON movimientos.producto_id = productos.id
+        WHERE productos.id = ? AND productos.activo = 1
+        GROUP BY productos.id
+    ");
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $resultadoStock = $stmt->get_result();
+    $stockInfo = $resultadoStock ? $resultadoStock->fetch_assoc() : null;
+    $stmt->close();
+
+    if (!$stockInfo) {
+        http_response_code(404);
+        echo json_encode(['error' => 'No se pudo calcular el stock actual del producto.']);
+        exit;
+    }
+
+    $movimientos_delta = floatval($stockInfo['movimientos_delta']);
+    $stock_base = $stock_actual - $movimientos_delta;
 
     $stmt = $conn->prepare('SELECT id FROM productos WHERE nombre = ? AND activo = 1 AND id <> ?');
     $stmt->bind_param('si', $nombre, $id);
@@ -213,8 +257,8 @@ if ($metodo === 'PUT') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('UPDATE productos SET nombre = ?, codigo = ?, unidad_medida = ?, precio_unitario = ? WHERE id = ? AND activo = 1');
-    $stmt->bind_param('sssdi', $nombre, $codigo, $unidad_medida, $precio_unitario, $id);
+    $stmt = $conn->prepare('UPDATE productos SET nombre = ?, codigo = ?, unidad_medida = ?, stock_base = ?, precio_unitario = ? WHERE id = ? AND activo = 1');
+    $stmt->bind_param('sssddi', $nombre, $codigo, $unidad_medida, $stock_base, $precio_unitario, $id);
 
     if ($stmt->execute()) {
         echo json_encode([
@@ -223,6 +267,7 @@ if ($metodo === 'PUT') {
             'nombre' => $nombre,
             'codigo' => $codigo,
             'unidad_medida' => $unidad_medida,
+            'stock_actual' => $stock_actual,
             'precio_unitario' => $precio_unitario
         ]);
     } else {

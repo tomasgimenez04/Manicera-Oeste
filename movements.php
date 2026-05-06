@@ -34,7 +34,7 @@ if ($metodo === 'GET') {
         SELECT
             movimientos.id,
             movimientos.tipo,
-            productos.nombre AS producto,
+            COALESCE(productos.nombre, '') AS producto,
             movimientos.producto_id,
             COALESCE(productos.codigo, '') AS codigo,
             COALESCE(productos.unidad_medida, 'kg') AS unidad_medida,
@@ -77,21 +77,29 @@ if ($metodo === 'POST') {
     $monto = isset($body['monto']) ? floatval($body['monto']) : 0;
     $observacion = isset($body['observacion']) ? trim($body['observacion']) : null;
 
-    if (!in_array($tipo, ['venta', 'compra'], true)) {
+    if (!in_array($tipo, ['venta', 'compra', 'ingreso', 'egreso'], true)) {
         http_response_code(400);
-        echo json_encode(['error' => "El tipo debe ser 'venta' o 'compra'."]);
+        echo json_encode(['error' => "El tipo debe ser 'venta', 'compra', 'ingreso' o 'egreso'."]);
         exit;
     }
 
-    if ($producto_id <= 0) {
+    $requiereProducto = $tipo === 'venta' || $tipo === 'compra';
+
+    if ($requiereProducto && $producto_id <= 0) {
         http_response_code(400);
         echo json_encode(['error' => 'Producto inválido.']);
         exit;
     }
 
-    if ($cantidad <= 0) {
+    if ($requiereProducto && $cantidad <= 0) {
         http_response_code(400);
         echo json_encode(['error' => 'La cantidad debe ser mayor a 0.']);
+        exit;
+    }
+
+    if (!$requiereProducto && $observacion === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'La descripción es obligatoria.']);
         exit;
     }
 
@@ -118,11 +126,19 @@ if ($metodo === 'POST') {
         exit;
     }
 
-    $stmt = $conn->prepare('
-        INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
-        VALUES (?, ?, ?, ?, ?)
-    ');
-    $stmt->bind_param('sidds', $tipo, $producto_id, $cantidad, $monto, $observacion);
+    if ($requiereProducto) {
+        $stmt = $conn->prepare('
+            INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
+            VALUES (?, ?, ?, ?, ?)
+        ');
+        $stmt->bind_param('sidds', $tipo, $producto_id, $cantidad, $monto, $observacion);
+    } else {
+        $stmt = $conn->prepare('
+            INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
+            VALUES (?, NULL, NULL, ?, ?)
+        ');
+        $stmt->bind_param('sds', $tipo, $monto, $observacion);
+    }
 
     if ($stmt->execute()) {
         echo json_encode([

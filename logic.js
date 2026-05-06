@@ -13,7 +13,8 @@ const API = {
     productos: new URL('products.php', APP_BASE).href,
     movimientos: new URL('movements.php', APP_BASE).href,
     stock: new URL('stock.php', APP_BASE).href,
-    invoices: new URL('invoices.php', APP_BASE).href
+    invoices: new URL('invoices.php', APP_BASE).href,
+    salaries: new URL('salaries.php', APP_BASE).href
 };
 
 const PAGE_SIZE = 10;
@@ -22,15 +23,23 @@ let productos = [];
 let movimientosInicio = [];
 let movimientosBalance = [];
 let ventasFacturacion = [];
+let sueldosActivos = [];
+let resumenSueldos = {
+    pendientes: 0,
+    pagados_mes: 0,
+    egresos_mes: 0
+};
 let stockActual = [];
 let filtroActual = 'dia';
 let filtroFacturacionActual = 'dia';
 let productoEnEdicionId = null;
 let facturacionSeleccionada = new Set();
+let historialSueldoAbierto = null;
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
     facturacion: PAGE_SIZE,
+    sueldos: PAGE_SIZE,
     stock: PAGE_SIZE,
     productos: PAGE_SIZE
 };
@@ -130,6 +139,57 @@ function fmtCurrencyAmount(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+}
+
+function formatSalaryType(value) {
+    switch (value) {
+        case 'unico':
+            return 'Único';
+        case 'diario':
+            return 'Diario';
+        case 'semanal':
+            return 'Semanal';
+        case 'quincenal':
+            return 'Quincenal';
+        case 'mensual':
+            return 'Mensual';
+        default:
+            return value || '-';
+    }
+}
+
+function isIncomeType(tipo) {
+    return tipo === 'venta' || tipo === 'ingreso';
+}
+
+function isExpenseType(tipo) {
+    return tipo === 'compra' || tipo === 'egreso';
+}
+
+function getToastVariantForTipo(tipo) {
+    return isIncomeType(tipo) ? 'venta' : 'compra';
+}
+
+function getMovimientoDisplayName(item) {
+    if (item && item.producto) {
+        return formatearNombreProducto(item.producto, item.codigo);
+    }
+
+    if (item && item.observacion) {
+        return item.observacion;
+    }
+
+    return 'Sin detalle';
+}
+
+function getMovimientoCantidadText(item) {
+    const cantidad = Number(item && item.cantidad != null ? item.cantidad : 0);
+
+    if (!Number.isFinite(cantidad) || cantidad === 0) {
+        return '-';
+    }
+
+    return fmtCantidad(cantidad, item.unidad_medida);
 }
 
 function getProductStockClass(value) {
@@ -466,9 +526,25 @@ function renderPaginatedList(config) {
 }
 
 function setBadge(element, tipo) {
-    element.classList.remove('venta', 'compra');
+    element.classList.remove('venta', 'compra', 'ingreso', 'egreso');
     element.classList.add(tipo);
-    element.textContent = tipo === 'venta' ? 'Venta' : 'Compra';
+
+    if (tipo === 'venta') {
+        element.textContent = 'Venta';
+        return;
+    }
+
+    if (tipo === 'compra') {
+        element.textContent = 'Compra';
+        return;
+    }
+
+    if (tipo === 'ingreso') {
+        element.textContent = 'Ingreso';
+        return;
+    }
+
+    element.textContent = 'Egreso';
 }
 
 // Render de selects, tablas y listas
@@ -646,10 +722,10 @@ function createInicioRow(item) {
     const hora = row.querySelector('[data-field="hora"]');
 
     setBadge(tipo, item.tipo);
-    producto.textContent = formatearNombreProducto(item.producto, item.codigo);
-    cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
-    monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
-    monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
+    producto.textContent = getMovimientoDisplayName(item);
+    cantidad.textContent = getMovimientoCantidadText(item);
+    monto.textContent = `${isIncomeType(item.tipo) ? '+' : '-'}${fmt(item.monto)}`;
+    monto.className = `amount ${isIncomeType(item.tipo) ? 'positive' : 'negative'}`;
     hora.textContent = item.hora;
 
     return row;
@@ -667,10 +743,10 @@ function createBalanceRow(item) {
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
     setBadge(tipo, item.tipo);
-    producto.textContent = formatearNombreProducto(item.producto, item.codigo);
-    cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
-    monto.textContent = `${item.tipo === 'venta' ? '+' : '-'}${fmt(item.monto)}`;
-    monto.className = `amount ${item.tipo === 'venta' ? 'positive' : 'negative'}`;
+    producto.textContent = getMovimientoDisplayName(item);
+    cantidad.textContent = getMovimientoCantidadText(item);
+    monto.textContent = `${isIncomeType(item.tipo) ? '+' : '-'}${fmt(item.monto)}`;
+    monto.className = `amount ${isIncomeType(item.tipo) ? 'positive' : 'negative'}`;
 
     return row;
 }
@@ -750,6 +826,61 @@ function createFacturacionRow(item) {
 
     row.classList.toggle('is-selected', isSelected);
     replaceChildren(seleccion, [checkbox]);
+
+    return row;
+}
+
+function createSueldoRow(item) {
+    const row = cloneTemplate('tpl-sueldo-row');
+    const descripcion = row.querySelector('[data-field="descripcion"]');
+    const monto = row.querySelector('[data-field="monto"]');
+    const tipo = row.querySelector('[data-field="tipo"]');
+    const proximo = row.querySelector('[data-field="proximo"]');
+    const estado = row.querySelector('[data-field="estado"]');
+    const acciones = row.querySelector('[data-field="acciones"]');
+    const statusBadge = document.createElement('span');
+    const actionsWrap = document.createElement('div');
+    const payButton = document.createElement('button');
+    const historyButton = document.createElement('button');
+    const deleteButton = document.createElement('button');
+    const isPaid = item.estado_periodo === 'pagado';
+
+    descripcion.textContent = item.descripcion;
+    monto.textContent = fmtCurrencyAmount(item.monto);
+    monto.className = 'amount';
+    tipo.textContent = formatSalaryType(item.tipo_pago);
+    proximo.textContent = item.proximo_pago || '-';
+
+    statusBadge.className = `salary-status salary-status--${isPaid ? 'paid' : 'pending'}`;
+    statusBadge.textContent = isPaid ? 'Pagado' : 'Pendiente';
+    replaceChildren(estado, [statusBadge]);
+
+    actionsWrap.className = 'salary-actions';
+
+    payButton.type = 'button';
+    payButton.className = 'btn btn-primary btn-sm salary-pay-btn';
+    payButton.textContent = 'Pagar';
+    payButton.disabled = isPaid;
+    payButton.addEventListener('click', async () => {
+        await pagarSueldo(item.id);
+    });
+
+    historyButton.type = 'button';
+    historyButton.className = 'btn btn-secondary btn-sm';
+    historyButton.textContent = 'Ver historial';
+    historyButton.addEventListener('click', async () => {
+        await verHistorial(item.id, item.descripcion);
+    });
+
+    deleteButton.type = 'button';
+    deleteButton.className = 'btn btn-primary btn-danger btn-sm';
+    deleteButton.textContent = 'Eliminar';
+    deleteButton.addEventListener('click', async () => {
+        await eliminarSueldo(item.id, item.descripcion);
+    });
+
+    actionsWrap.append(payButton, historyButton, deleteButton);
+    replaceChildren(acciones, [actionsWrap]);
 
     return row;
 }
@@ -901,6 +1032,92 @@ function renderFacturacionTable() {
     });
 }
 
+function renderSueldosSummary() {
+    const pendientes = document.getElementById('sueldos-pendientes');
+    const pagadosMes = document.getElementById('sueldos-pagados-mes');
+    const egresosMes = document.getElementById('sueldos-egresos-mes');
+
+    if (!pendientes || !pagadosMes || !egresosMes) {
+        return;
+    }
+
+    pendientes.textContent = String(resumenSueldos.pendientes || 0);
+    pagadosMes.textContent = String(resumenSueldos.pagados_mes || 0);
+    egresosMes.textContent = fmtCurrencyAmount(resumenSueldos.egresos_mes || 0);
+}
+
+function renderSueldosTable() {
+    const tbody = document.getElementById('tabla-sueldos');
+    if (!tbody) {
+        return;
+    }
+
+    renderPaginatedTable({
+        tbody,
+        items: sueldosActivos,
+        key: 'sueldos',
+        colspan: 6,
+        emptyMessage: 'No hay sueldos activos registrados.',
+        createRow: createSueldoRow,
+        rerender: renderSueldosTable
+    });
+}
+
+function openSalaryHistoryModal(title = 'Historial de pagos') {
+    const modal = document.getElementById('salary-history-modal');
+    const subtitle = document.getElementById('salary-history-subtitle');
+
+    if (!modal) {
+        return;
+    }
+
+    if (subtitle) {
+        subtitle.textContent = `Pagos registrados de ${title}.`;
+    }
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}
+
+function closeSalaryHistoryModal() {
+    const modal = document.getElementById('salary-history-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    historialSueldoAbierto = null;
+}
+
+function renderSalaryHistoryRows(items) {
+    const tbody = document.getElementById('salary-history-body');
+    if (!tbody) {
+        return;
+    }
+
+    if (!items.length) {
+        replaceChildren(tbody, [createEmptyTableRow(2, 'Sin pagos registrados.')]);
+        return;
+    }
+
+    const rows = items.map((item) => {
+        const row = document.createElement('tr');
+        const fecha = document.createElement('td');
+        const monto = document.createElement('td');
+
+        fecha.textContent = item.fecha_pago_formateada || item.fecha_pago || '-';
+        monto.textContent = fmtCurrencyAmount(item.monto_pagado);
+        monto.className = 'amount';
+        row.append(fecha, monto);
+        return row;
+    });
+
+    replaceChildren(tbody, rows);
+}
+
 function renderStockList() {
     const lista = document.getElementById('stock-lista');
     if (!lista) {
@@ -927,6 +1144,18 @@ function updateProductModalUnitText(unidad) {
     unitLabel.textContent = `Unidad de medida: ${getUnidadMedida(unidad)}.`;
 }
 
+function updateProductModalStockInput(unidad) {
+    const stockInput = document.getElementById('editar-producto-stock');
+
+    if (!stockInput) {
+        return;
+    }
+
+    const unidadMedida = getUnidadMedida(unidad);
+    stockInput.step = usaCantidadEntera(unidadMedida) ? '1' : '0.5';
+    stockInput.placeholder = usaCantidadEntera(unidadMedida) ? '0' : '0.0';
+}
+
 function openProductModal(producto) {
     const modal = document.getElementById('product-modal');
 
@@ -934,10 +1163,16 @@ function openProductModal(producto) {
         return;
     }
 
+    const stockActual = Number(producto.stock_cantidad || 0);
+
     productoEnEdicionId = producto.id;
     document.getElementById('editar-producto-nombre').value = producto.nombre || '';
     document.getElementById('editar-producto-codigo').value = producto.codigo || '';
     document.getElementById('editar-producto-unidad').value = getUnidadMedida(producto);
+    updateProductModalStockInput(producto);
+    document.getElementById('editar-producto-stock').value = usaCantidadEntera(producto)
+        ? String(Math.round(stockActual))
+        : stockActual.toFixed(2);
     document.getElementById('editar-producto-precio').value = getPrecioUnitario(producto).toFixed(2);
     updateProductModalUnitText(producto);
 
@@ -968,10 +1203,12 @@ async function guardarCambiosProducto() {
     const nombreInput = document.getElementById('editar-producto-nombre');
     const codigoInput = document.getElementById('editar-producto-codigo');
     const unidadInput = document.getElementById('editar-producto-unidad');
+    const stockInput = document.getElementById('editar-producto-stock');
     const precioInput = document.getElementById('editar-producto-precio');
     const nombre = nombreInput.value.trim();
     const codigo = codigoInput.value.trim();
     const unidad_medida = unidadInput ? unidadInput.value : 'kg';
+    const stock_actual = stockInput ? parseFloat(stockInput.value) : NaN;
     const precio_unitario = parseFloat(precioInput.value) || 0;
 
     if (!nombre) {
@@ -984,8 +1221,18 @@ async function guardarCambiosProducto() {
         return;
     }
 
-    if (precio_unitario <= 0) {
-        showToast('Escribí un precio mayor a 0.', 'error');
+    if (!Number.isFinite(stock_actual)) {
+        showToast('Escribí un stock válido.', 'error');
+        return;
+    }
+
+    if (usaCantidadEntera(unidad_medida) && !Number.isInteger(stock_actual)) {
+        showToast(`Para productos por ${unidad_medida}, el stock debe ser entero.`, 'error');
+        return;
+    }
+
+    if (precio_unitario < 0) {
+        showToast('Escribí un precio mayor o igual a 0.', 'error');
         return;
     }
 
@@ -993,7 +1240,7 @@ async function guardarCambiosProducto() {
         const data = await fetchJson(API.productos, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: productoEnEdicionId, nombre, codigo, unidad_medida, precio_unitario })
+            body: JSON.stringify({ id: productoEnEdicionId, nombre, codigo, unidad_medida, stock_actual, precio_unitario })
         });
 
         if (data && data.error) {
@@ -1245,6 +1492,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('[data-register-other]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            registrarOtroMovimiento(btn.dataset.registerOther);
+        });
+    });
+
     const agregarBtn = document.getElementById('btn-agregar-producto');
     if (agregarBtn) {
         agregarBtn.addEventListener('click', agregarProducto);
@@ -1253,6 +1506,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const facturaBtn = document.getElementById('btn-generar-factura');
     if (facturaBtn) {
         facturaBtn.addEventListener('click', generarFactura);
+    }
+
+    const salaryRegisterBtn = document.getElementById('btn-registrar-sueldo');
+    if (salaryRegisterBtn) {
+        salaryRegisterBtn.addEventListener('click', registrarSueldo);
     }
 
     ['v-producto', 'c-producto'].forEach((id) => {
@@ -1307,13 +1565,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (productUnitSelect) {
         productUnitSelect.addEventListener('change', () => {
             updateProductModalUnitText(productUnitSelect.value);
+            updateProductModalStockInput(productUnitSelect.value);
         });
+    }
+
+    document.querySelectorAll('[data-salary-close]').forEach((element) => {
+        element.addEventListener('click', closeSalaryHistoryModal);
+    });
+
+    const salaryHistoryCloseBtn = document.getElementById('salary-history-close-btn');
+    if (salaryHistoryCloseBtn) {
+        salaryHistoryCloseBtn.addEventListener('click', closeSalaryHistoryModal);
+    }
+
+    const salaryStartInput = document.getElementById('sueldo-fecha-inicio');
+    if (salaryStartInput && !salaryStartInput.value) {
+        salaryStartInput.value = new Date().toISOString().slice(0, 10);
     }
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeAllProductPickers();
             closeProductModal();
+            closeSalaryHistoryModal();
         }
     });
 
@@ -1344,7 +1618,8 @@ function showSection(id, btn) {
     btn.classList.add('active');
 
     if (id === 'inicio') cargarInicio();
-    if (id === 'registrar') cargarProductosEnSelects();
+    if (id === 'ingresos' || id === 'egresos') cargarProductosEnSelects();
+    if (id === 'sueldos') cargarSueldos();
     if (id === 'balance') cargarBalance();
     if (id === 'facturacion') cargarFacturacion();
     if (id === 'stock') cargarStock();
@@ -1431,10 +1706,216 @@ async function registrar(tipo) {
             calcularMontoVenta();
         }
 
-        showToast(tipo === 'venta' ? 'Venta registrada.' : 'Compra registrada.', tipo);
+        showToast(tipo === 'venta' ? 'Venta registrada.' : 'Compra registrada.', getToastVariantForTipo(tipo));
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al guardar el movimiento.'), 'error');
+    }
+}
+
+async function registrarOtroMovimiento(tipo) {
+    const prefix = tipo === 'ingreso' ? 'oi' : 'oe';
+    const descripcionInput = document.getElementById(`${prefix}-descripcion`);
+    const montoInput = document.getElementById(`${prefix}-monto`);
+    const observacion = descripcionInput ? descripcionInput.value.trim() : '';
+    const monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+
+    if (!observacion) {
+        showToast('Escribí una descripción.', 'error');
+        return;
+    }
+
+    if (monto <= 0) {
+        showToast('Escribí un monto mayor a 0.', 'error');
+        return;
+    }
+
+    try {
+        const data = await fetchJson(API.movimientos, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo, monto, observacion })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        if (descripcionInput) {
+            descripcionInput.value = '';
+        }
+
+        if (montoInput) {
+            montoInput.value = '';
+        }
+
+        showToast(tipo === 'ingreso' ? 'Ingreso registrado.' : 'Egreso registrado.', getToastVariantForTipo(tipo));
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al guardar el movimiento.'), 'error');
+    }
+}
+
+async function cargarSueldos() {
+    try {
+        const data = await fetchJson(API.salaries);
+        const payload = Array.isArray(data) ? { items: data, resumen: {} } : (data || {});
+
+        sueldosActivos = ensureArray(payload.items);
+        resumenSueldos = {
+            pendientes: Number(payload.resumen && payload.resumen.pendientes) || 0,
+            pagados_mes: Number(payload.resumen && payload.resumen.pagados_mes) || 0,
+            egresos_mes: Number(payload.resumen && payload.resumen.egresos_mes) || 0
+        };
+
+        resetVisibleCount('sueldos');
+        renderSueldosSummary();
+        renderSueldosTable();
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al cargar sueldos.'), 'error');
+    }
+}
+
+async function registrarSueldo() {
+    const descripcionInput = document.getElementById('sueldo-descripcion');
+    const montoInput = document.getElementById('sueldo-monto');
+    const tipoInput = document.getElementById('sueldo-tipo-pago');
+    const fechaInicioInput = document.getElementById('sueldo-fecha-inicio');
+    const fechaFinInput = document.getElementById('sueldo-fecha-fin');
+    const descripcion = descripcionInput ? descripcionInput.value.trim() : '';
+    const monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+    const tipo_pago = tipoInput ? tipoInput.value : 'unico';
+    const fecha_inicio = fechaInicioInput ? fechaInicioInput.value : '';
+    const fecha_fin = fechaFinInput ? fechaFinInput.value.trim() : '';
+
+    if (!descripcion) {
+        showToast('Escribí una descripción del sueldo.', 'error');
+        return;
+    }
+
+    if (monto <= 0) {
+        showToast('Escribí un monto mayor a 0.', 'error');
+        return;
+    }
+
+    if (!fecha_inicio) {
+        showToast('Selecciona la fecha de inicio.', 'error');
+        return;
+    }
+
+    try {
+        const data = await fetchJson(`${API.salaries}?accion=crear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                descripcion,
+                monto,
+                tipo_pago,
+                fecha_inicio,
+                fecha_fin: fecha_fin || null
+            })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        if (descripcionInput) {
+            descripcionInput.value = '';
+        }
+
+        if (montoInput) {
+            montoInput.value = '';
+        }
+
+        if (tipoInput) {
+            tipoInput.value = 'unico';
+        }
+
+        if (fechaFinInput) {
+            fechaFinInput.value = '';
+        }
+
+        if (fechaInicioInput) {
+            fechaInicioInput.value = new Date().toISOString().slice(0, 10);
+        }
+
+        showToast('Sueldo registrado.', 'venta');
+        await cargarSueldos();
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al registrar el sueldo.'), 'error');
+    }
+}
+
+async function pagarSueldo(id) {
+    try {
+        const data = await fetchJson(`${API.salaries}?accion=pagar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sueldo_id: Number(id) })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        await cargarSueldos();
+
+        if (typeof cargarInicio === 'function') {
+            await cargarInicio();
+        }
+
+        if (typeof cargarBalance === 'function') {
+            await cargarBalance();
+        }
+
+        showToast('Pago de sueldo registrado.', 'compra');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al pagar el sueldo.'), 'error');
+    }
+}
+
+async function verHistorial(id, descripcion = 'este sueldo') {
+    try {
+        historialSueldoAbierto = Number(id);
+        const data = await fetchJson(`${API.salaries}?id=${Number(id)}`);
+        const items = ensureArray(data);
+        renderSalaryHistoryRows(items);
+        openSalaryHistoryModal(descripcion);
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al cargar el historial del sueldo.'), 'error');
+    }
+}
+
+async function eliminarSueldo(id, descripcion) {
+    if (!confirm(`Desactivar "${descripcion}"?`)) {
+        return;
+    }
+
+    try {
+        const data = await fetchJson(API.salaries, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: Number(id) })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        await cargarSueldos();
+        showToast('Sueldo eliminado.', 'compra');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al eliminar el sueldo.'), 'error');
     }
 }
 
@@ -1444,10 +1925,10 @@ async function cargarInicio() {
         resetVisibleCount('inicio');
 
         const ingresos = movimientosInicio
-            .filter((item) => item.tipo === 'venta')
+            .filter((item) => isIncomeType(item.tipo))
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const egresos = movimientosInicio
-            .filter((item) => item.tipo === 'compra')
+            .filter((item) => isExpenseType(item.tipo))
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const balance = ingresos - egresos;
 
@@ -1484,10 +1965,10 @@ async function cargarBalance() {
         resetVisibleCount('balance');
 
         const ingresos = movimientosBalance
-            .filter((item) => item.tipo === 'venta')
+            .filter((item) => isIncomeType(item.tipo))
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const egresos = movimientosBalance
-            .filter((item) => item.tipo === 'compra')
+            .filter((item) => isExpenseType(item.tipo))
             .reduce((sum, item) => sum + Number(item.monto || 0), 0);
         const balance = ingresos - egresos;
 

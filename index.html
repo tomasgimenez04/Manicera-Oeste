@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260506-2">
+  <link rel="stylesheet" href="style.css?v=20260506-6">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260506-2" defer></script>
+  <script src="logic.js?v=20260506-6" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -27,7 +27,9 @@
     <!-- Navegación principal -->
     <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
-      <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
+      <button class="nav-btn" type="button" data-section="ingresos">Ingresos</button>
+      <button class="nav-btn" type="button" data-section="egresos">Egresos</button>
+      <button class="nav-btn" type="button" data-section="sueldos">Sueldos</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
       <button class="nav-btn" type="button" data-section="facturacion">Facturación</button>
       <button class="nav-btn" type="button" data-section="stock">Stock</button>
@@ -65,7 +67,7 @@
       <article class="movements-card">
         <div class="panel-heading">
           <h2>Historial de movimientos</h2>
-          <p>Vista rápida de compras y ventas registradas durante el día.</p>
+          <p>Vista rápida de ventas, compras y otros movimientos registrados durante el día.</p>
         </div>
 
         <div class="table-shell">
@@ -73,7 +75,7 @@
             <thead>
               <tr>
                 <th>Tipo</th>
-                <th>Producto</th>
+                <th>Producto/Descripción</th>
                 <th>Cantidad</th>
                 <th>Monto</th>
                 <th>Hora</th>
@@ -89,7 +91,7 @@
       </article>
     </section>
 
-    <section id="registrar" class="section">
+    <section id="ingresos" class="section section--movements">
       <div class="dashboard-grid dashboard-grid--two">
         <article class="form-card">
           <div class="panel-heading">
@@ -145,6 +147,32 @@
 
         <article class="form-card">
           <div class="panel-heading">
+            <h2>Otros ingresos</h2>
+            <p>Registra entradas de dinero que no provienen de una venta de productos.</p>
+          </div>
+
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="oi-descripcion">Descripción</label>
+              <input type="text" id="oi-descripcion" placeholder="Ej: aporte de caja, cobro pendiente...">
+            </div>
+            <div class="form-group">
+              <label for="oi-monto">Monto ($)</label>
+              <input type="number" id="oi-monto" placeholder="0" min="0" step="0.01">
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-success" type="button" data-register-other="ingreso">
+            Registrar otro ingreso
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <section id="egresos" class="section section--movements">
+      <div class="dashboard-grid dashboard-grid--two">
+        <article class="form-card">
+          <div class="panel-heading">
             <h2>Registrar compra</h2>
             <p>Guarda un nuevo egreso para actualizar caja y stock.</p>
           </div>
@@ -190,7 +218,122 @@
             Registrar compra
           </button>
         </article>
+
+        <article class="form-card">
+          <div class="panel-heading">
+            <h2>Otros egresos</h2>
+            <p>Registra salidas de dinero que no corresponden a compras de productos.</p>
+          </div>
+
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="oe-descripcion">Descripción</label>
+              <input type="text" id="oe-descripcion" placeholder="Ej: alquiler, flete, servicio...">
+            </div>
+            <div class="form-group">
+              <label for="oe-monto">Monto ($)</label>
+              <input type="number" id="oe-monto" placeholder="0" min="0" step="0.01">
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-danger" type="button" data-register-other="egreso">
+            Registrar otro egreso
+          </button>
+        </article>
       </div>
+    </section>
+
+    <section id="sueldos" class="section">
+      <div class="dashboard-grid dashboard-grid--two">
+        <article class="form-card salary-form-card">
+          <div class="panel-heading">
+            <h2>Registrar sueldo</h2>
+            <p>Define pagos de personal, trabajos eventuales o contratos recurrentes.</p>
+          </div>
+
+          <div class="form-grid form-grid--single">
+            <div class="form-group">
+              <label for="sueldo-descripcion">Descripción</label>
+              <input type="text" id="sueldo-descripcion" placeholder="Ej: Juan Pérez - reparto, limpieza del local...">
+            </div>
+            <div class="form-group">
+              <label for="sueldo-monto">Monto ($)</label>
+              <input type="number" id="sueldo-monto" placeholder="0" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="sueldo-tipo-pago">Tipo de pago</label>
+              <select id="sueldo-tipo-pago">
+                <option value="unico">Único</option>
+                <option value="diario">Diario</option>
+                <option value="semanal">Semanal</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="mensual">Mensual</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sueldo-fecha-inicio">Inicio de pago</label>
+              <input type="date" id="sueldo-fecha-inicio">
+            </div>
+            <div class="form-group">
+              <label for="sueldo-fecha-fin">Fin de pago (opcional)</label>
+              <input type="date" id="sueldo-fecha-fin">
+            </div>
+          </div>
+
+          <button class="btn btn-primary salary-register-btn" type="button" id="btn-registrar-sueldo">
+            Registrar sueldo
+          </button>
+        </article>
+
+        <article class="panel-card salary-summary-card">
+          <div class="panel-heading">
+            <h2>Resumen del período</h2>
+            <p>Seguimiento rápido de vencimientos y egresos por sueldos del mes actual.</p>
+          </div>
+
+          <div class="salary-summary-grid">
+            <div class="salary-summary-item">
+              <span class="salary-summary-label">Pendientes de pago</span>
+              <strong class="salary-summary-value salary-summary-value--danger" id="sueldos-pendientes">0</strong>
+            </div>
+            <div class="salary-summary-item">
+              <span class="salary-summary-label">Pagados en el mes</span>
+              <strong class="salary-summary-value salary-summary-value--success" id="sueldos-pagados-mes">0</strong>
+            </div>
+            <div class="salary-summary-item">
+              <span class="salary-summary-label">Egresos del mes</span>
+              <strong class="salary-summary-value salary-summary-value--primary" id="sueldos-egresos-mes">$0,00</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel-card">
+        <div class="panel-heading">
+          <h2>Sueldos activos</h2>
+          <p>Administra vencimientos, pagos confirmados e historial de cada sueldo.</p>
+        </div>
+
+        <div class="table-shell">
+          <table class="movements-table salary-table">
+            <thead>
+              <tr>
+                <th>Descripción</th>
+                <th>Monto</th>
+                <th>Tipo de pago</th>
+                <th>Próximo vencimiento</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-sueldos">
+              <tr>
+                <td colspan="6" class="empty">Cargando sueldos...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
 
     <section id="balance" class="section">
@@ -254,7 +397,7 @@
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Tipo</th>
-                <th>Producto</th>
+                <th>Producto/Descripción</th>
                 <th>Cantidad</th>
                 <th>Monto</th>
               </tr>
@@ -297,7 +440,7 @@
               <tr>
                 <th>Fecha</th>
                 <th>Hora</th>
-                <th>Producto</th>
+                <th>Detalle</th>
                 <th>Cód.</th>
                 <th>Cant.</th>
                 <th>Total</th>
@@ -330,7 +473,7 @@
         </div>
 
         <p class="stock-note">
-          La cantidad disponible se calcula sumando las compras y restando las ventas. El aviso aparece cuando un producto tiene menos de 5 en stock.
+          La cantidad disponible se calcula sumando las compras y restando las ventas. También podés corregirla manualmente desde Productos. El aviso aparece cuando un producto tiene menos de 5 en stock.
         </p>
       </article>
     </section>
@@ -433,6 +576,17 @@
     </tr>
   </template>
 
+  <template id="tpl-sueldo-row">
+    <tr>
+      <td data-field="descripcion"></td>
+      <td data-field="monto"></td>
+      <td data-field="tipo"></td>
+      <td data-field="proximo"></td>
+      <td data-field="estado"></td>
+      <td data-field="acciones"></td>
+    </tr>
+  </template>
+
   <template id="tpl-stock-row">
     <div class="stock-row">
       <span class="stock-nombre" data-field="nombre"></span>
@@ -499,6 +653,10 @@
             </select>
           </div>
           <div class="form-group">
+            <label for="editar-producto-stock">Stock actual</label>
+            <input type="number" id="editar-producto-stock" placeholder="Ej: 0" step="0.5">
+          </div>
+          <div class="form-group">
             <label for="editar-producto-precio">Precio por unidad de medida ($)</label>
             <input type="number" id="editar-producto-precio" placeholder="Ej: 4800" min="0" step="0.01">
           </div>
@@ -507,6 +665,37 @@
         <div class="product-modal__actions">
           <button class="btn btn-secondary btn-sm" type="button" id="product-close-btn">Cancelar</button>
           <button class="btn btn-primary btn-sm" type="button" id="product-save-btn">Guardar cambios</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="salary-modal is-hidden" id="salary-history-modal" aria-hidden="true">
+    <div class="salary-modal__backdrop" data-salary-close></div>
+    <div class="salary-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="salary-history-title">
+      <article class="salary-modal__card">
+        <div class="panel-heading panel-heading--split salary-modal__heading">
+          <div>
+            <h2 id="salary-history-title">Historial de pagos</h2>
+            <p id="salary-history-subtitle">Pagos registrados del sueldo seleccionado.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" id="salary-history-close-btn">Cerrar</button>
+        </div>
+
+        <div class="table-shell">
+          <table class="movements-table salary-history-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Monto pagado</th>
+              </tr>
+            </thead>
+            <tbody id="salary-history-body">
+              <tr>
+                <td colspan="2" class="empty">Sin pagos registrados.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </article>
     </div>
