@@ -959,6 +959,11 @@ textarea:focus {
   gap: 8px;
 }
 
+.salary-edit-btn {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
 .salary-status {
   display: inline-flex;
   align-items: center;
@@ -1020,6 +1025,13 @@ textarea:focus {
 
 .salary-modal__heading {
   margin-bottom: 18px;
+}
+
+.salary-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
 }
 
 .salary-history-table th:last-child,

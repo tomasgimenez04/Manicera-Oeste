@@ -73,20 +73,48 @@ function add_months_keep_day(DateTimeImmutable $date, $months) {
     );
 }
 
-function add_salary_interval(DateTimeImmutable $date, $tipo) {
+function move_salary_interval(DateTimeImmutable $date, $tipo, $steps) {
+    if ($steps === 0) {
+        return $date;
+    }
+
     switch ($tipo) {
         case 'diario':
-            return $date->modify('+1 day');
+            return $date->modify(($steps >= 0 ? '+' : '') . $steps . ' day');
         case 'semanal':
-            return $date->modify('+7 day');
+            $days = $steps * 7;
+            return $date->modify(($days >= 0 ? '+' : '') . $days . ' day');
         case 'quincenal':
-            return $date->modify('+15 day');
+            $days = $steps * 15;
+            return $date->modify(($days >= 0 ? '+' : '') . $days . ' day');
         case 'mensual':
-            return add_months_keep_day($date, 1);
+            return add_months_keep_day($date, $steps);
         case 'unico':
         default:
             return null;
     }
+}
+
+function add_salary_interval(DateTimeImmutable $date, $tipo) {
+    return move_salary_interval($date, $tipo, 1);
+}
+
+function normalize_period_bounds(?DateTimeImmutable $periodStart, ?DateTimeImmutable $periodEnd) {
+    if (!$periodStart || !$periodEnd) {
+        return [
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd
+        ];
+    }
+
+    if ($periodEnd < $periodStart) {
+        $periodEnd = $periodStart;
+    }
+
+    return [
+        'period_start' => $periodStart,
+        'period_end' => $periodEnd
+    ];
 }
 
 function get_salary_period_info(array $salary, DateTimeImmutable $today) {
@@ -105,10 +133,11 @@ function get_salary_period_info(array $salary, DateTimeImmutable $today) {
 
     if ($tipo === 'unico') {
         $periodEnd = $end ?: $start;
+        $bounds = normalize_period_bounds($start, $periodEnd);
 
         return [
-            'period_start' => $start,
-            'period_end' => $periodEnd,
+            'period_start' => $bounds['period_start'],
+            'period_end' => $bounds['period_end'],
             'due_date' => $start,
             'next_due_date' => $start
         ];
@@ -120,12 +149,20 @@ function get_salary_period_info(array $salary, DateTimeImmutable $today) {
     }
 
     if ($start > $limit) {
-        $next = add_salary_interval($start, $tipo);
-        $periodEnd = $next ? $next->modify('-1 day') : $start;
+        $previousDue = move_salary_interval($start, $tipo, -1);
+        $periodStart = $previousDue ?: $start;
+        $nextDue = add_salary_interval($start, $tipo);
+        $periodEnd = $nextDue ? $nextDue->modify('-1 day') : ($end ?: $start);
+
+        if ($end && $end < $periodEnd) {
+            $periodEnd = $end;
+        }
+
+        $bounds = normalize_period_bounds($periodStart, $periodEnd);
 
         return [
-            'period_start' => $start,
-            'period_end' => $periodEnd,
+            'period_start' => $bounds['period_start'],
+            'period_end' => $bounds['period_end'],
             'due_date' => $start,
             'next_due_date' => $start
         ];
@@ -146,9 +183,11 @@ function get_salary_period_info(array $salary, DateTimeImmutable $today) {
         $nextVisibleDue = $currentDue;
     }
 
+    $bounds = normalize_period_bounds($currentDue, $periodEnd);
+
     return [
-        'period_start' => $currentDue,
-        'period_end' => $periodEnd,
+        'period_start' => $bounds['period_start'],
+        'period_end' => $bounds['period_end'],
         'due_date' => $currentDue,
         'next_due_date' => $nextVisibleDue
     ];
@@ -177,20 +216,60 @@ function payment_in_period(array $payments, ?DateTimeImmutable $periodStart, ?Da
     return false;
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
+function require_salary_payload(array $body, $includeId = false) {
+    $salaryId = $includeId ? intval($body['sueldo_id'] ?? 0) : 0;
+    $descripcion = trim($body['descripcion'] ?? '');
+    $monto = floatval($body['monto'] ?? 0);
+    $tipoPago = trim($body['tipo_pago'] ?? '');
+    $fechaInicio = trim($body['fecha_inicio'] ?? '');
+    $fechaFin = array_key_exists('fecha_fin', $body) ? trim((string) $body['fecha_fin']) : '';
 
-if ($method === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-if ($method === 'GET' && isset($_GET['id'])) {
-    $salaryId = intval($_GET['id']);
-
-    if ($salaryId <= 0) {
-        respond_json(['error' => 'ID de sueldo inválido.'], 400);
+    if ($includeId && $salaryId <= 0) {
+        throw new Exception('Selecciona un sueldo válido.', 400);
     }
 
+    if ($descripcion === '') {
+        throw new Exception('La descripción es obligatoria.', 400);
+    }
+
+    if ($monto <= 0) {
+        throw new Exception('El monto debe ser mayor a 0.', 400);
+    }
+
+    if (!in_array($tipoPago, SALARY_TYPES, true)) {
+        throw new Exception('El tipo de pago no es válido.', 400);
+    }
+
+    $startDate = parse_date_value($fechaInicio);
+    if (!$startDate) {
+        throw new Exception('La fecha de inicio no es válida.', 400);
+    }
+
+    $endDate = null;
+    if ($fechaFin !== '') {
+        $endDate = parse_date_value($fechaFin);
+        if (!$endDate) {
+            throw new Exception('La fecha de fin no es válida.', 400);
+        }
+
+        if ($endDate < $startDate) {
+            throw new Exception('La fecha de fin no puede ser anterior al inicio.', 400);
+        }
+    } else {
+        $fechaFin = null;
+    }
+
+    return [
+        'sueldo_id' => $salaryId,
+        'descripcion' => $descripcion,
+        'monto' => $monto,
+        'tipo_pago' => $tipoPago,
+        'fecha_inicio' => $fechaInicio,
+        'fecha_fin' => $fechaFin
+    ];
+}
+
+function fetch_salary_history(mysqli $conn, $salaryId) {
     $stmt = $conn->prepare('
         SELECT
             id,
@@ -207,13 +286,39 @@ if ($method === 'GET' && isset($_GET['id'])) {
     $history = [];
 
     while ($row = $result->fetch_assoc()) {
+        $row['id'] = intval($row['id']);
+        $row['sueldo_id'] = intval($row['sueldo_id']);
         $row['monto_pagado'] = floatval($row['monto_pagado']);
-        $row['fecha_pago_formateada'] = format_datetime_br($row['fecha_pago']);
         $history[] = $row;
     }
 
     $stmt->close();
-    respond_json($history);
+    return $history;
+}
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($method === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+if ($method === 'GET' && isset($_GET['id'])) {
+    $salaryId = intval($_GET['id']);
+
+    if ($salaryId <= 0) {
+        respond_json(['error' => 'ID de sueldo inválido.'], 400);
+    }
+
+    $history = fetch_salary_history($conn, $salaryId);
+    $response = [];
+
+    foreach ($history as $row) {
+        $row['fecha_pago_formateada'] = format_datetime_br($row['fecha_pago']);
+        $response[] = $row;
+    }
+
+    respond_json($response);
 }
 
 if ($method === 'GET') {
@@ -243,35 +348,13 @@ if ($method === 'GET') {
     $salaryIds = [];
 
     while ($row = $result->fetch_assoc()) {
+        $row['id'] = intval($row['id']);
         $row['monto'] = floatval($row['monto']);
         $items[] = $row;
-        $salaryIds[] = intval($row['id']);
+        $salaryIds[] = $row['id'];
     }
 
     $paymentsBySalary = [];
-    $monthlyPaidCount = 0;
-    $monthlyPaidTotal = 0.0;
-
-    $monthlyStmt = $conn->prepare('
-        SELECT
-            COUNT(*) AS pagos_mes,
-            COALESCE(SUM(monto_pagado), 0) AS total_mes
-        FROM pagos_sueldos
-        WHERE fecha_pago >= ? AND fecha_pago < ?
-    ');
-    $monthStartSql = $monthStart->format('Y-m-d H:i:s');
-    $nextMonthSql = $nextMonthStart->format('Y-m-d H:i:s');
-    $monthlyStmt->bind_param('ss', $monthStartSql, $nextMonthSql);
-    $monthlyStmt->execute();
-    $monthlyResult = $monthlyStmt->get_result();
-    $monthlyRow = $monthlyResult ? $monthlyResult->fetch_assoc() : null;
-    $monthlyStmt->close();
-
-    if ($monthlyRow) {
-        $monthlyPaidCount = intval($monthlyRow['pagos_mes']);
-        $monthlyPaidTotal = floatval($monthlyRow['total_mes']);
-    }
-
     if ($salaryIds) {
         $idList = implode(',', array_map('intval', $salaryIds));
         $paymentsResult = $conn->query("
@@ -301,22 +384,35 @@ if ($method === 'GET') {
         }
     }
 
-    $activeItems = [];
+    $monthlyStmt = $conn->prepare('
+        SELECT
+            COUNT(*) AS pagos_mes,
+            COALESCE(SUM(monto_pagado), 0) AS total_mes
+        FROM pagos_sueldos
+        WHERE fecha_pago >= ? AND fecha_pago < ?
+    ');
+    $monthStartSql = $monthStart->format('Y-m-d H:i:s');
+    $nextMonthSql = $nextMonthStart->format('Y-m-d H:i:s');
+    $monthlyStmt->bind_param('ss', $monthStartSql, $nextMonthSql);
+    $monthlyStmt->execute();
+    $monthlyRow = $monthlyStmt->get_result()->fetch_assoc();
+    $monthlyStmt->close();
+
     $pendingCount = 0;
+    $activeItems = [];
 
     foreach ($items as $salary) {
-        $salaryId = intval($salary['id']);
-        $payments = isset($paymentsBySalary[$salaryId]) ? $paymentsBySalary[$salaryId] : [];
+        $salaryId = $salary['id'];
+        $payments = $paymentsBySalary[$salaryId] ?? [];
         $period = get_salary_period_info($salary, $today);
         $paid = payment_in_period($payments, $period['period_start'], $period['period_end']);
-        $status = $paid ? 'pagado' : 'pendiente';
 
-        if ($status === 'pendiente') {
+        if (!$paid) {
             $pendingCount++;
         }
 
         $salary['pagos_historicos'] = count($payments);
-        $salary['estado_periodo'] = $status;
+        $salary['estado_periodo'] = $paid ? 'pagado' : 'pendiente';
         $salary['proximo_pago'] = $period['next_due_date'] ? $period['next_due_date']->format('d/m/Y') : null;
         $salary['fecha_inicio_formateada'] = format_date_br($salary['fecha_inicio']);
         $salary['fecha_fin_formateada'] = format_date_br($salary['fecha_fin']);
@@ -327,129 +423,146 @@ if ($method === 'GET') {
         'items' => $activeItems,
         'resumen' => [
             'pendientes' => $pendingCount,
-            'pagados_mes' => $monthlyPaidCount,
-            'egresos_mes' => round($monthlyPaidTotal, 2)
+            'pagados_mes' => intval($monthlyRow['pagos_mes'] ?? 0),
+            'egresos_mes' => round(floatval($monthlyRow['total_mes'] ?? 0), 2)
         ]
     ]);
 }
 
 if ($method === 'POST') {
-    $action = isset($_GET['accion']) ? trim($_GET['accion']) : '';
+    $action = trim($_GET['accion'] ?? '');
     $body = get_json_input();
 
     if ($action === 'crear') {
-        $descripcion = isset($body['descripcion']) ? trim($body['descripcion']) : '';
-        $monto = isset($body['monto']) ? floatval($body['monto']) : 0;
-        $tipoPago = isset($body['tipo_pago']) ? trim($body['tipo_pago']) : '';
-        $fechaInicio = isset($body['fecha_inicio']) ? trim($body['fecha_inicio']) : '';
-        $fechaFin = isset($body['fecha_fin']) ? trim($body['fecha_fin']) : null;
+        try {
+            $payload = require_salary_payload($body);
 
-        if ($descripcion === '') {
-            respond_json(['error' => 'La descripción es obligatoria.'], 400);
-        }
+            $stmt = $conn->prepare('
+                INSERT INTO sueldos (descripcion, monto, tipo_pago, fecha_inicio, fecha_fin, activo)
+                VALUES (?, ?, ?, ?, ?, 1)
+            ');
+            $stmt->bind_param(
+                'sdsss',
+                $payload['descripcion'],
+                $payload['monto'],
+                $payload['tipo_pago'],
+                $payload['fecha_inicio'],
+                $payload['fecha_fin']
+            );
 
-        if ($monto <= 0) {
-            respond_json(['error' => 'El monto debe ser mayor a 0.'], 400);
-        }
-
-        if (!in_array($tipoPago, SALARY_TYPES, true)) {
-            respond_json(['error' => 'El tipo de pago no es válido.'], 400);
-        }
-
-        $startDate = parse_date_value($fechaInicio);
-        if (!$startDate) {
-            respond_json(['error' => 'La fecha de inicio no es válida.'], 400);
-        }
-
-        $endDate = null;
-        if ($fechaFin !== null && $fechaFin !== '') {
-            $endDate = parse_date_value($fechaFin);
-            if (!$endDate) {
-                respond_json(['error' => 'La fecha de fin no es válida.'], 400);
+            if (!$stmt->execute()) {
+                $stmt->close();
+                throw new Exception('No se pudo registrar el sueldo.', 500);
             }
 
-            if ($endDate < $startDate) {
-                respond_json(['error' => 'La fecha de fin no puede ser anterior al inicio.'], 400);
-            }
-        } else {
-            $fechaFin = null;
-        }
-
-        $stmt = $conn->prepare('
-            INSERT INTO sueldos (descripcion, monto, tipo_pago, fecha_inicio, fecha_fin, activo)
-            VALUES (?, ?, ?, ?, ?, 1)
-        ');
-        $stmt->bind_param('sdsss', $descripcion, $monto, $tipoPago, $fechaInicio, $fechaFin);
-
-        if (!$stmt->execute()) {
+            $id = intval($conn->insert_id);
             $stmt->close();
-            respond_json(['error' => 'No se pudo registrar el sueldo.'], 500);
+
+            respond_json([
+                'ok' => true,
+                'id' => $id
+            ]);
+        } catch (Throwable $error) {
+            $status = intval($error->getCode());
+            if ($status < 400 || $status > 599) {
+                $status = 500;
+            }
+
+            respond_json(['error' => $error->getMessage()], $status);
         }
+    }
 
-        $id = $conn->insert_id;
-        $stmt->close();
+    if ($action === 'modificar') {
+        try {
+            $payload = require_salary_payload($body, true);
 
-        respond_json([
-            'ok' => true,
-            'id' => $id
-        ]);
+            $stmt = $conn->prepare('
+                UPDATE sueldos
+                SET descripcion = ?, monto = ?, tipo_pago = ?, fecha_inicio = ?, fecha_fin = ?
+                WHERE id = ? AND activo = 1
+            ');
+            $stmt->bind_param(
+                'sdsssi',
+                $payload['descripcion'],
+                $payload['monto'],
+                $payload['tipo_pago'],
+                $payload['fecha_inicio'],
+                $payload['fecha_fin'],
+                $payload['sueldo_id']
+            );
+
+            if (!$stmt->execute()) {
+                $stmt->close();
+                throw new Exception('No se pudo modificar el sueldo.', 500);
+            }
+
+            if ($stmt->affected_rows === 0) {
+                $checkStmt = $conn->prepare('SELECT id FROM sueldos WHERE id = ? AND activo = 1');
+                $checkStmt->bind_param('i', $payload['sueldo_id']);
+                $checkStmt->execute();
+                $exists = $checkStmt->get_result()->fetch_assoc();
+                $checkStmt->close();
+
+                if (!$exists) {
+                    $stmt->close();
+                    throw new Exception('El sueldo no existe o ya fue desactivado.', 404);
+                }
+            }
+
+            $stmt->close();
+
+            respond_json([
+                'ok' => true,
+                'id' => $payload['sueldo_id']
+            ]);
+        } catch (Throwable $error) {
+            $status = intval($error->getCode());
+            if ($status < 400 || $status > 599) {
+                $status = 500;
+            }
+
+            respond_json(['error' => $error->getMessage()], $status);
+        }
     }
 
     if ($action === 'pagar') {
-        $salaryId = isset($body['sueldo_id']) ? intval($body['sueldo_id']) : 0;
+        $salaryId = intval($body['sueldo_id'] ?? 0);
 
         if ($salaryId <= 0) {
             respond_json(['error' => 'Selecciona un sueldo válido.'], 400);
         }
 
-        $stmt = $conn->prepare('
-            SELECT
-                id,
-                descripcion,
-                monto,
-                tipo_pago,
-                fecha_inicio,
-                fecha_fin,
-                activo
-            FROM sueldos
-            WHERE id = ? AND activo = 1
-        ');
-        $stmt->bind_param('i', $salaryId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $salary = $result ? $result->fetch_assoc() : null;
-        $stmt->close();
-
-        if (!$salary) {
-            respond_json(['error' => 'El sueldo no existe o ya fue desactivado.'], 404);
-        }
-
-        $today = new DateTimeImmutable('today');
-        $period = get_salary_period_info($salary, $today);
-        $payments = [];
-
-        $historyStmt = $conn->prepare('
-            SELECT id, monto_pagado, fecha_pago
-            FROM pagos_sueldos
-            WHERE sueldo_id = ?
-            ORDER BY fecha_pago DESC, id DESC
-        ');
-        $historyStmt->bind_param('i', $salaryId);
-        $historyStmt->execute();
-        $historyResult = $historyStmt->get_result();
-
-        while ($row = $historyResult->fetch_assoc()) {
-            $payments[] = $row;
-        }
-
-        $historyStmt->close();
-
-        if (payment_in_period($payments, $period['period_start'], $period['period_end'])) {
-            respond_json(['error' => 'Ese sueldo ya fue pagado en el período actual.'], 400);
-        }
-
         try {
             $conn->begin_transaction();
+
+            $salaryStmt = $conn->prepare('
+                SELECT
+                    id,
+                    descripcion,
+                    monto,
+                    tipo_pago,
+                    fecha_inicio,
+                    fecha_fin,
+                    activo
+                FROM sueldos
+                WHERE id = ? AND activo = 1
+                FOR UPDATE
+            ');
+            $salaryStmt->bind_param('i', $salaryId);
+            $salaryStmt->execute();
+            $salary = $salaryStmt->get_result()->fetch_assoc();
+            $salaryStmt->close();
+
+            if (!$salary) {
+                throw new Exception('El sueldo no existe o ya fue desactivado.', 404);
+            }
+
+            $payments = fetch_salary_history($conn, $salaryId);
+            $period = get_salary_period_info($salary, new DateTimeImmutable('today'));
+
+            if (payment_in_period($payments, $period['period_start'], $period['period_end'])) {
+                throw new Exception('Ese sueldo ya fue pagado en el período actual.', 400);
+            }
 
             $amount = floatval($salary['monto']);
             $insertPayment = $conn->prepare('
@@ -459,7 +572,8 @@ if ($method === 'POST') {
             $insertPayment->bind_param('id', $salaryId, $amount);
 
             if (!$insertPayment->execute()) {
-                throw new Exception('No se pudo registrar el pago del sueldo.');
+                $insertPayment->close();
+                throw new Exception('No se pudo registrar el pago del sueldo.', 500);
             }
 
             $insertPayment->close();
@@ -472,7 +586,8 @@ if ($method === 'POST') {
             $insertMovement->bind_param('ds', $amount, $observacion);
 
             if (!$insertMovement->execute()) {
-                throw new Exception('No se pudo registrar el movimiento de sueldo.');
+                $insertMovement->close();
+                throw new Exception('No se pudo registrar el movimiento de sueldo.', 500);
             }
 
             $insertMovement->close();
@@ -482,7 +597,8 @@ if ($method === 'POST') {
                 $disableStmt->bind_param('i', $salaryId);
 
                 if (!$disableStmt->execute()) {
-                    throw new Exception('No se pudo desactivar el sueldo único.');
+                    $disableStmt->close();
+                    throw new Exception('No se pudo desactivar el sueldo único.', 500);
                 }
 
                 $disableStmt->close();
@@ -496,7 +612,12 @@ if ($method === 'POST') {
             ]);
         } catch (Throwable $error) {
             $conn->rollback();
-            respond_json(['error' => $error->getMessage()], 500);
+            $status = intval($error->getCode());
+            if ($status < 400 || $status > 599) {
+                $status = 500;
+            }
+
+            respond_json(['error' => $error->getMessage()], $status);
         }
     }
 
@@ -505,7 +626,7 @@ if ($method === 'POST') {
 
 if ($method === 'DELETE') {
     $body = get_json_input();
-    $salaryId = isset($body['id']) ? intval($body['id']) : 0;
+    $salaryId = intval($body['id'] ?? 0);
 
     if ($salaryId <= 0) {
         respond_json(['error' => 'ID de sueldo inválido.'], 400);

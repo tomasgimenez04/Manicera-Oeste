@@ -35,6 +35,8 @@ let filtroFacturacionActual = 'dia';
 let productoEnEdicionId = null;
 let facturacionSeleccionada = new Set();
 let historialSueldoAbierto = null;
+let sueldoEnEdicionId = null;
+let sueldosPagando = new Set();
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
@@ -259,6 +261,10 @@ function getProductoById(productoId) {
     return productos.find((item) => Number(item.id) === Number(productoId)) || null;
 }
 
+function getSueldoById(sueldoId) {
+    return sueldosActivos.find((item) => Number(item.id) === Number(sueldoId)) || null;
+}
+
 function getPrecioUnitario(source) {
     const precio = source && source.precio_unitario != null ? Number(source.precio_unitario) : 0;
     return Number.isFinite(precio) ? precio : 0;
@@ -341,6 +347,11 @@ function createEmptyParagraph(text) {
 
 function replaceChildren(element, children) {
     element.replaceChildren(...children);
+}
+
+function updateModalBodyLock() {
+    const hasOpenModal = document.querySelector('.product-modal:not(.is-hidden), .salary-modal:not(.is-hidden)') !== null;
+    document.body.classList.toggle('modal-open', hasOpenModal);
 }
 
 function resetVisibleCount(key) {
@@ -525,9 +536,14 @@ function renderPaginatedList(config) {
     replaceChildren(container, children);
 }
 
-function setBadge(element, tipo) {
+function setBadge(element, tipo, labelOverride = '') {
     element.classList.remove('venta', 'compra', 'ingreso', 'egreso');
     element.classList.add(tipo);
+
+    if (labelOverride) {
+        element.textContent = labelOverride;
+        return;
+    }
 
     if (tipo === 'venta') {
         element.textContent = 'Venta';
@@ -545,6 +561,10 @@ function setBadge(element, tipo) {
     }
 
     element.textContent = 'Egreso';
+}
+
+function isSalaryPaymentMovimiento(item) {
+    return item && item.tipo === 'compra' && normalizarTexto(item.observacion).startsWith('sueldo:');
 }
 
 // Render de selects, tablas y listas
@@ -721,9 +741,9 @@ function createInicioRow(item) {
     const monto = row.querySelector('[data-field="monto"]');
     const hora = row.querySelector('[data-field="hora"]');
 
-    setBadge(tipo, item.tipo);
+    setBadge(tipo, item.tipo, isSalaryPaymentMovimiento(item) ? 'Pago' : '');
     producto.textContent = getMovimientoDisplayName(item);
-    cantidad.textContent = getMovimientoCantidadText(item);
+    cantidad.textContent = isSalaryPaymentMovimiento(item) ? '-' : getMovimientoCantidadText(item);
     monto.textContent = `${isIncomeType(item.tipo) ? '+' : '-'}${fmt(item.monto)}`;
     monto.className = `amount ${isIncomeType(item.tipo) ? 'positive' : 'negative'}`;
     hora.textContent = item.hora;
@@ -742,7 +762,7 @@ function createBalanceRow(item) {
 
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
-    setBadge(tipo, item.tipo);
+    setBadge(tipo, item.tipo, isSalaryPaymentMovimiento(item) ? 'Pago' : '');
     producto.textContent = getMovimientoDisplayName(item);
     cantidad.textContent = getMovimientoCantidadText(item);
     monto.textContent = `${isIncomeType(item.tipo) ? '+' : '-'}${fmt(item.monto)}`;
@@ -841,8 +861,10 @@ function createSueldoRow(item) {
     const statusBadge = document.createElement('span');
     const actionsWrap = document.createElement('div');
     const payButton = document.createElement('button');
+    const editButton = document.createElement('button');
     const historyButton = document.createElement('button');
     const deleteButton = document.createElement('button');
+    const isProcessingPay = sueldosPagando.has(Number(item.id));
     const isPaid = item.estado_periodo === 'pagado';
 
     descripcion.textContent = item.descripcion;
@@ -859,10 +881,17 @@ function createSueldoRow(item) {
 
     payButton.type = 'button';
     payButton.className = 'btn btn-primary btn-sm salary-pay-btn';
-    payButton.textContent = 'Pagar';
-    payButton.disabled = isPaid;
+    payButton.textContent = isProcessingPay ? 'Pagando...' : 'Pagar';
+    payButton.disabled = isPaid || isProcessingPay;
     payButton.addEventListener('click', async () => {
         await pagarSueldo(item.id);
+    });
+
+    editButton.type = 'button';
+    editButton.className = 'btn btn-secondary btn-sm salary-edit-btn';
+    editButton.textContent = '✏️ Modificar';
+    editButton.addEventListener('click', () => {
+        openSalaryEditModal(item.id);
     });
 
     historyButton.type = 'button';
@@ -879,7 +908,7 @@ function createSueldoRow(item) {
         await eliminarSueldo(item.id, item.descripcion);
     });
 
-    actionsWrap.append(payButton, historyButton, deleteButton);
+    actionsWrap.append(payButton, editButton, historyButton, deleteButton);
     replaceChildren(acciones, [actionsWrap]);
 
     return row;
@@ -1077,7 +1106,7 @@ function openSalaryHistoryModal(title = 'Historial de pagos') {
 
     modal.classList.remove('is-hidden');
     modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
+    updateModalBodyLock();
 }
 
 function closeSalaryHistoryModal() {
@@ -1088,8 +1117,41 @@ function closeSalaryHistoryModal() {
 
     modal.classList.add('is-hidden');
     modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
+    updateModalBodyLock();
     historialSueldoAbierto = null;
+}
+
+function openSalaryEditModal(id) {
+    const modal = document.getElementById('salary-edit-modal');
+    const sueldo = getSueldoById(id);
+
+    if (!modal || !sueldo) {
+        showToast('No se encontró el sueldo a modificar.', 'error');
+        return;
+    }
+
+    sueldoEnEdicionId = Number(id);
+    document.getElementById('editar-sueldo-descripcion').value = sueldo.descripcion || '';
+    document.getElementById('editar-sueldo-monto').value = Number(sueldo.monto || 0).toFixed(2);
+    document.getElementById('editar-sueldo-tipo-pago').value = sueldo.tipo_pago || 'unico';
+    document.getElementById('editar-sueldo-fecha-inicio').value = sueldo.fecha_inicio || '';
+    document.getElementById('editar-sueldo-fecha-fin').value = sueldo.fecha_fin || '';
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    updateModalBodyLock();
+}
+
+function closeSalaryEditModal() {
+    const modal = document.getElementById('salary-edit-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    updateModalBodyLock();
+    sueldoEnEdicionId = null;
 }
 
 function renderSalaryHistoryRows(items) {
@@ -1178,7 +1240,7 @@ function openProductModal(producto) {
 
     modal.classList.remove('is-hidden');
     modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
+    updateModalBodyLock();
 }
 
 function closeProductModal() {
@@ -1190,7 +1252,7 @@ function closeProductModal() {
 
     modal.classList.add('is-hidden');
     modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
+    updateModalBodyLock();
     productoEnEdicionId = null;
 }
 
@@ -1578,6 +1640,20 @@ document.addEventListener('DOMContentLoaded', () => {
         salaryHistoryCloseBtn.addEventListener('click', closeSalaryHistoryModal);
     }
 
+    document.querySelectorAll('[data-salary-edit-close]').forEach((element) => {
+        element.addEventListener('click', closeSalaryEditModal);
+    });
+
+    const salaryEditCloseBtn = document.getElementById('salary-edit-close-btn');
+    if (salaryEditCloseBtn) {
+        salaryEditCloseBtn.addEventListener('click', closeSalaryEditModal);
+    }
+
+    const salaryEditSaveBtn = document.getElementById('salary-edit-save-btn');
+    if (salaryEditSaveBtn) {
+        salaryEditSaveBtn.addEventListener('click', guardarCambiosSueldo);
+    }
+
     const salaryStartInput = document.getElementById('sueldo-fecha-inicio');
     if (salaryStartInput && !salaryStartInput.value) {
         salaryStartInput.value = new Date().toISOString().slice(0, 10);
@@ -1588,6 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             closeAllProductPickers();
             closeProductModal();
             closeSalaryHistoryModal();
+            closeSalaryEditModal();
         }
     });
 
@@ -1851,12 +1928,81 @@ async function registrarSueldo() {
     }
 }
 
+async function guardarCambiosSueldo() {
+    if (!sueldoEnEdicionId) {
+        showToast('No hay un sueldo seleccionado para modificar.', 'error');
+        return;
+    }
+
+    const descripcionInput = document.getElementById('editar-sueldo-descripcion');
+    const montoInput = document.getElementById('editar-sueldo-monto');
+    const tipoInput = document.getElementById('editar-sueldo-tipo-pago');
+    const fechaInicioInput = document.getElementById('editar-sueldo-fecha-inicio');
+    const fechaFinInput = document.getElementById('editar-sueldo-fecha-fin');
+    const descripcion = descripcionInput ? descripcionInput.value.trim() : '';
+    const monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+    const tipo_pago = tipoInput ? tipoInput.value : 'unico';
+    const fecha_inicio = fechaInicioInput ? fechaInicioInput.value : '';
+    const fecha_fin = fechaFinInput ? fechaFinInput.value.trim() : '';
+
+    if (!descripcion) {
+        showToast('Escribí una descripción del sueldo.', 'error');
+        return;
+    }
+
+    if (monto <= 0) {
+        showToast('Escribí un monto mayor a 0.', 'error');
+        return;
+    }
+
+    if (!fecha_inicio) {
+        showToast('Selecciona la fecha de inicio.', 'error');
+        return;
+    }
+
+    try {
+        const data = await fetchJson(`${API.salaries}?accion=modificar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sueldo_id: Number(sueldoEnEdicionId),
+                descripcion,
+                monto,
+                tipo_pago,
+                fecha_inicio,
+                fecha_fin: fecha_fin || null
+            })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        closeSalaryEditModal();
+        await cargarSueldos();
+        showToast('Sueldo actualizado.', 'venta');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al modificar el sueldo.'), 'error');
+    }
+}
+
 async function pagarSueldo(id) {
+    const sueldoId = Number(id);
+
+    if (sueldosPagando.has(sueldoId)) {
+        return;
+    }
+
+    sueldosPagando.add(sueldoId);
+    renderSueldosTable();
+
     try {
         const data = await fetchJson(`${API.salaries}?accion=pagar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sueldo_id: Number(id) })
+            body: JSON.stringify({ sueldo_id: sueldoId })
         });
 
         if (data && data.error) {
@@ -1878,6 +2024,9 @@ async function pagarSueldo(id) {
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al pagar el sueldo.'), 'error');
+    } finally {
+        sueldosPagando.delete(sueldoId);
+        renderSueldosTable();
     }
 }
 
