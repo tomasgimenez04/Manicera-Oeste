@@ -24,6 +24,14 @@
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 12px;
+  --green: var(--success);
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--surface);
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --border-light: var(--border);
+  --border-mid: #c3cbd6;
+  --red: var(--danger);
 }
 
 html {
@@ -593,6 +601,17 @@ textarea:focus {
   background: var(--primary);
 }
 
+.facturacion-toolbar #btn-generar-factura.btn.btn-primary.is-active {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.facturacion-toolbar #btn-generar-factura.btn.btn-primary.is-active:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
 .btn-success {
   background: var(--success);
   border-color: var(--success);
@@ -680,31 +699,86 @@ textarea:focus {
   border-bottom: none;
 }
 
-.facturacion-col-check,
-.facturacion-table td:first-child {
+.facturacion-table th:last-child,
+.facturacion-table td:last-child,
+.facturacion-col-check {
   width: 58px;
   text-align: center;
 }
 
-.facturacion-table th:last-child,
-.facturacion-table td:last-child {
+.facturacion-table th:nth-child(6),
+.facturacion-table td:nth-child(6) {
   text-align: right;
 }
 
 .selection-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
   width: 18px;
   height: 18px;
   margin: 0;
-  accent-color: var(--primary-strong);
+  border: 1.5px solid var(--border-light);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px 12px;
   cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.selection-checkbox:hover {
+  border-color: var(--green);
+}
+
+.selection-checkbox:checked {
+  background-color: var(--green);
+  border-color: var(--green);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 7.2 5.7 10 11 4.5'/%3E%3C/svg%3E");
+}
+
+.selection-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.16);
 }
 
 .facturacion-row.is-selected {
-  background: rgba(31, 41, 55, 0.06);
+  background: #f0faf5;
 }
 
 .facturacion-row.is-selected:hover {
-  background: rgba(31, 41, 55, 0.08);
+  background: #e8f7ef;
+}
+
+.facturacion-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.facturacion-selection-summary {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(240, 250, 245, 0.7), rgba(255, 255, 255, 0.98));
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.facturacion-selection-summary.is-empty {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+
+.facturacion-selection-summary.is-active {
+  border-color: rgba(5, 150, 105, 0.24);
+  color: var(--green);
 }
 
 .load-more-cell {
@@ -811,7 +885,7 @@ textarea:focus {
   left: 14px;
   width: 20px;
   height: 20px;
-  color: var(--muted);
+  color: var(--text-secondary);
   transform: translateY(-50%);
   pointer-events: none;
 }
@@ -827,13 +901,18 @@ textarea:focus {
   padding-left: 44px;
 }
 
+#productos input,
+#productos select {
+  border-color: var(--border-mid);
+}
+
 .stock-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   padding: 16px 0;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--border-mid);
 }
 
 .stock-row:last-child {
@@ -842,6 +921,8 @@ textarea:focus {
 
 .stock-row--product {
   gap: 20px;
+  padding: 18px 16px 18px 18px;
+  border-left: 3px solid transparent;
 }
 
 .product-copy {
@@ -855,7 +936,20 @@ textarea:focus {
 .product-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+}
+
+.product-meta-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.product-meta-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .stock-nombre {
@@ -872,7 +966,7 @@ textarea:focus {
 }
 
 #productos .stock-nombre {
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
 }
@@ -882,12 +976,19 @@ textarea:focus {
 #productos .product-price {
   display: inline-flex;
   align-items: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
 }
 
 #productos .product-code {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f0f0f0;
   color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 #productos .product-stock {
@@ -897,6 +998,14 @@ textarea:focus {
 #productos .product-price {
   color: var(--primary);
   font-size: 18px;
+}
+
+#productos .product-card--available {
+  border-left-color: var(--green);
+}
+
+#productos .product-card--empty {
+  border-left-color: var(--red);
 }
 
 #productos .product-stock--high {
@@ -1001,6 +1110,24 @@ textarea:focus {
 
 .product-actions .btn {
   min-width: 104px;
+}
+
+#btn-agregar-producto {
+  display: flex;
+  justify-content: center;
+  width: min(100%, 300px);
+  min-height: 0;
+  margin: 6px auto 0;
+  padding: 10px 18px;
+}
+
+#productos [data-action="modificar"] {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+#productos [data-action="eliminar"] {
+  color: #ffffff;
 }
 
 .product-modal {

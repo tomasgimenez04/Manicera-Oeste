@@ -72,9 +72,9 @@ if ($metodo === 'POST') {
         exit;
     }
 
-    if (!in_array($unidad_medida, ['kg', 'unidad'], true)) {
+    if (!in_array($unidad_medida, ['kg', 'unidad', 'bandeja'], true)) {
         http_response_code(400);
-        echo json_encode(['error' => 'La unidad de medida debe ser "kg" o "unidad".']);
+        echo json_encode(['error' => 'La unidad de medida debe ser "kg", "unidad" o "bandeja".']);
         exit;
     }
 

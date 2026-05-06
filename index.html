@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260505-2">
+  <link rel="stylesheet" href="style.css?v=20260506-1">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260505-2" defer></script>
+  <script src="logic.js?v=20260506-1" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -265,13 +265,13 @@
           <table class="movements-table facturacion-table">
             <thead>
               <tr>
-                <th class="facturacion-col-check">Sel.</th>
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Producto</th>
                 <th>Cod.</th>
                 <th>Cant.</th>
                 <th>Total</th>
+                <th class="facturacion-col-check">SEL.</th>
               </tr>
             </thead>
             <tbody id="tabla-facturacion">
@@ -280,6 +280,10 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="facturacion-selection-summary is-empty" id="facturacion-selection-summary" aria-live="polite">
+          0 ventas seleccionadas - Total: $0,00
         </div>
       </article>
     </section>
@@ -331,6 +335,7 @@
                 <select id="nueva-unidad-medida">
                   <option value="kg">kg</option>
                   <option value="unidad">unidad</option>
+                  <option value="bandeja">bandeja</option>
                 </select>
               </div>
             </div>
@@ -388,13 +393,13 @@
 
   <template id="tpl-facturacion-row">
     <tr class="facturacion-row">
-      <td data-field="seleccion"></td>
       <td data-field="fecha"></td>
       <td class="cell-muted" data-field="hora"></td>
       <td data-field="producto"></td>
       <td data-field="codigo"></td>
       <td data-field="cantidad"></td>
       <td data-field="monto"></td>
+      <td data-field="seleccion"></td>
     </tr>
   </template>
 
@@ -416,16 +421,22 @@
           <span class="product-code" data-field="codigo"></span>
         </div>
         <div class="product-meta">
-          <span class="product-stock" data-field="stock"></span>
-          <span class="product-price" data-field="precio"></span>
+          <div class="product-meta-line">
+            <span class="product-meta-label">Stock actual:</span>
+            <span class="product-stock" data-field="stock"></span>
+          </div>
+          <div class="product-meta-line">
+            <span class="product-meta-label">Precio actual:</span>
+            <span class="product-price" data-field="precio"></span>
+          </div>
         </div>
       </div>
       <div class="product-actions">
         <button class="btn btn-secondary btn-sm" type="button" data-action="modificar">
-          Modificar
+          ✏️ Modificar
         </button>
         <button class="btn btn-primary btn-danger btn-sm" type="button" data-action="eliminar">
-          Eliminar
+          🗑️ Eliminar
         </button>
       </div>
     </div>

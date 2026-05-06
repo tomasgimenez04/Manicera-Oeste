@@ -1,4 +1,4 @@
-// Configuracion y estado global
+﻿// Configuracion y estado global
 const APP_BASE = (() => {
     if (window.location.protocol === 'file:') {
         const parts = window.location.pathname.split('/').filter(Boolean);
@@ -63,16 +63,29 @@ function fmt(n) {
 }
 
 function getUnidadMedida(source) {
+    const unidadesValidas = ['kg', 'unidad', 'bandeja'];
+
     if (typeof source === 'string') {
-        return source === 'unidad' ? 'unidad' : 'kg';
+        return unidadesValidas.includes(source) ? source : 'kg';
     }
 
-    return source && source.unidad_medida === 'unidad' ? 'unidad' : 'kg';
+    return source && unidadesValidas.includes(source.unidad_medida) ? source.unidad_medida : 'kg';
+}
+
+function usaCantidadEntera(unidad) {
+    const unidadMedida = getUnidadMedida(unidad);
+    return unidadMedida === 'unidad' || unidadMedida === 'bandeja';
 }
 
 function getUnidadTexto(unidad, value) {
-    if (getUnidadMedida(unidad) !== 'unidad') {
+    const unidadMedida = getUnidadMedida(unidad);
+
+    if (unidadMedida === 'kg') {
         return 'kg';
+    }
+
+    if (unidadMedida === 'bandeja') {
+        return Math.abs(Number(value)) === 1 ? 'bandeja' : 'bandejas';
     }
 
     return Math.abs(Number(value)) === 1 ? 'unidad' : 'unidades';
@@ -82,8 +95,8 @@ function formatCantidadNumero(value, unidad, minFractionDigits, maxFractionDigit
     const cantidad = Number(value);
     const cantidadSegura = Number.isFinite(cantidad) ? cantidad : 0;
     const unidadMedida = getUnidadMedida(unidad);
-    const minimumFractionDigits = unidadMedida === 'unidad' ? 0 : minFractionDigits;
-    const maximumFractionDigits = unidadMedida === 'unidad' ? 0 : maxFractionDigits;
+    const minimumFractionDigits = usaCantidadEntera(unidadMedida) ? 0 : minFractionDigits;
+    const maximumFractionDigits = usaCantidadEntera(unidadMedida) ? 0 : maxFractionDigits;
 
     return cantidadSegura.toLocaleString('es-AR', {
         minimumFractionDigits,
@@ -192,7 +205,17 @@ function getPrecioUnitario(source) {
 }
 
 function getPrecioLabel(source) {
-    return getUnidadMedida(source) === 'unidad' ? 'por unidad' : 'por kg';
+    const unidadMedida = getUnidadMedida(source);
+
+    if (unidadMedida === 'unidad') {
+        return 'por unidad';
+    }
+
+    if (unidadMedida === 'bandeja') {
+        return 'por bandeja';
+    }
+
+    return 'por kg';
 }
 
 function getPrecioTexto(source) {
@@ -402,8 +425,8 @@ function actualizarCampoCantidad(prefix) {
     const producto = select ? getProductoById(parseInt(select.value, 10)) : null;
     const unidadMedida = getUnidadMedida(producto);
 
-    input.step = unidadMedida === 'unidad' ? '1' : '0.5';
-    input.placeholder = unidadMedida === 'unidad' ? '0' : '0.0';
+    input.step = usaCantidadEntera(unidadMedida) ? '1' : '0.5';
+    input.placeholder = usaCantidadEntera(unidadMedida) ? '0' : '0.0';
 }
 
 function calcularMontoVenta() {
@@ -476,6 +499,24 @@ function updateFacturacionButtonState() {
     }
 
     button.disabled = facturacionSeleccionada.size === 0;
+    button.classList.toggle('is-active', facturacionSeleccionada.size > 0);
+}
+
+function updateFacturacionSelectionSummary() {
+    const summary = document.getElementById('facturacion-selection-summary');
+
+    if (!summary) {
+        return;
+    }
+
+    const selectedItems = getSelectedFacturacionItems();
+    const count = selectedItems.length;
+    const total = selectedItems.reduce((sum, item) => sum + Number(item.monto || 0), 0);
+    const label = count === 1 ? 'venta seleccionada' : 'ventas seleccionadas';
+
+    summary.textContent = `${count} ${label} - Total: ${fmtCurrencyAmount(total)}`;
+    summary.classList.toggle('is-empty', count === 0);
+    summary.classList.toggle('is-active', count > 0);
 }
 
 function setFacturacionSeleccion(itemId, checked, row) {
@@ -492,6 +533,7 @@ function setFacturacionSeleccion(itemId, checked, row) {
     }
 
     updateFacturacionButtonState();
+    updateFacturacionSelectionSummary();
 }
 
 function createFacturacionRow(item) {
@@ -558,14 +600,17 @@ function createProductoRow(producto) {
     const precio = row.querySelector('[data-field="precio"]');
     const editButton = row.querySelector('[data-action="modificar"]');
     const deleteButton = row.querySelector('[data-action="eliminar"]');
+    const hasStock = Number(producto.stock_cantidad) > 0;
 
     nombre.textContent = producto.nombre;
-    codigo.textContent = producto.codigo ? `(${producto.codigo})` : '';
+    codigo.textContent = producto.codigo || '';
     codigo.classList.toggle('is-hidden', !producto.codigo);
-    stock.textContent = `Stock actual: ${fmtCantidad(producto.stock_cantidad, producto.unidad_medida)}`;
-    precio.textContent = `Precio actual: ${getPrecioTexto(producto)}`;
+    stock.textContent = fmtCantidad(producto.stock_cantidad, producto.unidad_medida);
+    precio.textContent = getPrecioTexto(producto);
     stock.classList.remove('product-stock--high', 'product-stock--medium', 'product-stock--empty');
     stock.classList.add(getProductStockClass(producto.stock_cantidad));
+    row.classList.toggle('product-card--available', hasStock);
+    row.classList.toggle('product-card--empty', !hasStock);
     editButton.addEventListener('click', () => {
         openProductModal(producto);
     });
@@ -770,14 +815,10 @@ async function guardarCambiosProducto() {
     }
 }
 
-function truncatePdfText(doc, text, maxWidth) {
-    let value = String(text || '');
-
-    while (value.length > 0 && doc.getTextWidth(value) > maxWidth) {
-        value = `${value.slice(0, -4)}...`;
-    }
-
-    return value || '-';
+function splitPdfTextLines(doc, text, maxWidth) {
+    const value = String(text || '-').trim() || '-';
+    const lines = doc.splitTextToSize(value, maxWidth);
+    return Array.isArray(lines) && lines.length ? lines : ['-'];
 }
 
 function drawInvoicePdf(doc, factura) {
@@ -785,11 +826,12 @@ function drawInvoicePdf(doc, factura) {
     const pageHeight = doc.internal.pageSize.getHeight();
     const marginX = 14;
     const contentRight = pageWidth - marginX;
+    const centerX = pageWidth / 2;
     const qtyX = marginX;
-    const productX = 42;
-    const codeX = 116;
-    const unitX = 156;
+    const productX = 50;
+    const unitX = 160;
     const totalX = contentRight;
+    const productWidth = unitX - productX - 14;
     let y = 20;
 
     const drawSeparator = () => {
@@ -802,7 +844,6 @@ function drawInvoicePdf(doc, factura) {
         doc.setFontSize(10);
         doc.text('CANT.', qtyX, y);
         doc.text('PRODUCTO', productX, y);
-        doc.text('COD.', codeX, y);
         doc.text('$ UNIT', unitX, y, { align: 'right' });
         doc.text('IMPORTE', totalX, y, { align: 'right' });
         y += 3;
@@ -813,16 +854,22 @@ function drawInvoicePdf(doc, factura) {
     const beginFirstPage = () => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(20);
-        doc.text('MANICERA OESTE', marginX, y);
+        doc.text('MANICERA OESTE', centerX, y, { align: 'center' });
 
         y += 7;
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(11);
-        doc.text('DISTRIBUIDORA MAYORISTA', marginX, y);
+        doc.text('DISTRIBUIDORA MAYORISTA', centerX, y, { align: 'center' });
 
         y += 6;
         doc.setFontSize(9);
-        doc.text('Direccion - Localidad, Provincia', marginX, y);
+        doc.text('Laureana Ferrari 403', centerX, y, { align: 'center' });
+
+        y += 5;
+        doc.text('Palomar', centerX, y, { align: 'center' });
+
+        y += 5;
+        doc.text('Buenos Aires, Argentina', centerX, y, { align: 'center' });
 
         y += 7;
         drawSeparator();
@@ -830,7 +877,7 @@ function drawInvoicePdf(doc, factura) {
         y += 8;
         doc.setFont('courier', 'bold');
         doc.setFontSize(12);
-        doc.text(`FACTURA N°: ${factura.numeroFormateado}`, marginX, y);
+        doc.text(`PRESUPUESTO N\u00B0: ${factura.numeroFormateado}`, marginX, y);
         doc.text(`FECHA: ${factura.fecha}`, contentRight, y, { align: 'right' });
 
         y += 8;
@@ -844,7 +891,7 @@ function drawInvoicePdf(doc, factura) {
         y = 18;
         doc.setFont('courier', 'bold');
         doc.setFontSize(11);
-        doc.text(`FACTURA N°: ${factura.numeroFormateado}`, marginX, y);
+        doc.text(`PRESUPUESTO N\u00B0: ${factura.numeroFormateado}`, marginX, y);
         doc.text(`FECHA: ${factura.fecha}`, contentRight, y, { align: 'right' });
         y += 6;
         drawSeparator();
@@ -855,18 +902,22 @@ function drawInvoicePdf(doc, factura) {
     beginFirstPage();
 
     factura.items.forEach((item) => {
-        if (y > pageHeight - 42) {
-            beginNextPage();
-        }
-
         doc.setFont('courier', 'normal');
         doc.setFontSize(10);
+        const productLines = splitPdfTextLines(doc, item.producto, productWidth);
+        const rowHeight = productLines.length > 1 ? productLines.length * 5 : 7;
+
+        if (y + rowHeight > pageHeight - 42) {
+            beginNextPage();
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(10);
+        }
+
         doc.text(fmtCantidadDetalle(item.cantidad, item.unidad_medida), qtyX, y);
-        doc.text(truncatePdfText(doc, item.producto, 68), productX, y);
-        doc.text(truncatePdfText(doc, item.codigo || '-', 22), codeX, y);
+        doc.text(productLines, productX, y);
         doc.text(fmtCurrencyAmount(getPrecioUnitarioMovimiento(item)), unitX, y, { align: 'right' });
         doc.text(fmtCurrencyAmount(item.monto), totalX, y, { align: 'right' });
-        y += 7;
+        y += productLines.length > 1 ? rowHeight + 2 : 7;
     });
 
     if (y > pageHeight - 36) {
@@ -950,6 +1001,7 @@ async function generarFactura() {
 
         facturacionSeleccionada.clear();
         updateFacturacionButtonState();
+        updateFacturacionSelectionSummary();
         renderFacturacionTable();
         showToast(`Factura N${factura.numeroFormateado} generada.`, 'venta');
     } catch (error) {
@@ -957,6 +1009,7 @@ async function generarFactura() {
         showToast(getErrorMessage(error, 'Error al generar la factura.'), 'error');
     } finally {
         updateFacturacionButtonState();
+        updateFacturacionSelectionSummary();
     }
 }
 
@@ -1125,8 +1178,8 @@ async function registrar(tipo) {
         return;
     }
 
-    if (unidadMedida === 'unidad' && !Number.isInteger(cantidad)) {
-        showToast('Para productos por unidad, la cantidad debe ser entera.', 'error');
+    if (usaCantidadEntera(unidadMedida) && !Number.isInteger(cantidad)) {
+        showToast(`Para productos por ${unidadMedida}, la cantidad debe ser entera.`, 'error');
         return;
     }
 
@@ -1237,6 +1290,7 @@ async function cargarFacturacion() {
         resetVisibleCount('facturacion');
         renderFacturacionTable();
         updateFacturacionButtonState();
+        updateFacturacionSelectionSummary();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar ventas para facturacion.'), 'error');
