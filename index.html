@@ -100,7 +100,22 @@
           <div class="form-grid form-grid--triple">
             <div class="form-group">
               <label for="v-producto">Producto</label>
-              <select id="v-producto"></select>
+              <div class="product-picker" data-product-picker>
+                <select id="v-producto" class="product-picker__native"></select>
+                <button
+                  class="product-picker__trigger"
+                  type="button"
+                  data-product-picker-trigger
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                >
+                  <span class="product-picker__value" data-product-picker-value>Selecciona un producto</span>
+                  <span class="product-picker__chevron" aria-hidden="true">▾</span>
+                </button>
+                <div class="product-picker__menu is-hidden" data-product-picker-menu>
+                  <div class="product-picker__options" data-product-picker-options role="listbox"></div>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label for="v-cantidad">Cantidad</label>
@@ -137,7 +152,22 @@
           <div class="form-grid form-grid--triple">
             <div class="form-group">
               <label for="c-producto">Producto</label>
-              <select id="c-producto"></select>
+              <div class="product-picker" data-product-picker>
+                <select id="c-producto" class="product-picker__native"></select>
+                <button
+                  class="product-picker__trigger"
+                  type="button"
+                  data-product-picker-trigger
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                >
+                  <span class="product-picker__value" data-product-picker-value>Selecciona un producto</span>
+                  <span class="product-picker__chevron" aria-hidden="true">▾</span>
+                </button>
+                <div class="product-picker__menu is-hidden" data-product-picker-menu>
+                  <div class="product-picker__options" data-product-picker-options role="listbox"></div>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label for="c-cantidad">Cantidad</label>
@@ -414,7 +444,7 @@
   </template>
 
   <template id="tpl-producto-row">
-    <div class="stock-row stock-row--product">
+    <div class="stock-row stock-row--product product-row">
       <div class="product-copy">
         <div class="product-heading">
           <span class="stock-nombre" data-field="nombre"></span>
@@ -459,6 +489,14 @@
           <div class="form-group">
             <label for="editar-producto-codigo">Codigo del producto</label>
             <input type="text" id="editar-producto-codigo" placeholder="Ej: MH-001">
+          </div>
+          <div class="form-group">
+            <label for="editar-producto-unidad">Unidad de medida</label>
+            <select id="editar-producto-unidad">
+              <option value="kg">kg</option>
+              <option value="unidad">unidad</option>
+              <option value="bandeja">bandeja</option>
+            </select>
           </div>
           <div class="form-group">
             <label for="editar-producto-precio">Precio por unidad de medida ($)</label>

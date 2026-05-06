@@ -135,7 +135,7 @@ function fmtCurrencyAmount(value) {
 function getProductStockClass(value) {
     const cantidad = Number(value);
 
-    if (cantidad > 10) {
+    if (cantidad >= 5) {
         return 'product-stock--high';
     }
 
@@ -342,6 +342,73 @@ function createLoadMoreListBlock(visible, total, onClick) {
     return wrapper;
 }
 
+function appendNextTablePage(config) {
+    const {
+        tbody,
+        items,
+        key,
+        colspan,
+        createRow
+    } = config;
+
+    const currentVisibleCount = Math.min(visibleCounts[key], items.length);
+    increaseVisibleCount(key);
+
+    const visibleItems = getVisibleItems(items, key);
+    const nextItems = visibleItems.slice(currentVisibleCount);
+    const loadMoreRow = tbody.querySelector('.load-more-cell')?.parentElement || null;
+    const fragment = document.createDocumentFragment();
+
+    nextItems.forEach((item) => {
+        fragment.appendChild(createRow(item));
+    });
+
+    if (loadMoreRow) {
+        loadMoreRow.remove();
+    }
+
+    if (visibleItems.length < items.length) {
+        fragment.appendChild(createLoadMoreTableRow(colspan, visibleItems.length, items.length, () => {
+            appendNextTablePage(config);
+        }));
+    }
+
+    tbody.appendChild(fragment);
+}
+
+function appendNextListPage(config) {
+    const {
+        container,
+        items,
+        key,
+        createRow
+    } = config;
+
+    const currentVisibleCount = Math.min(visibleCounts[key], items.length);
+    increaseVisibleCount(key);
+
+    const visibleItems = getVisibleItems(items, key);
+    const nextItems = visibleItems.slice(currentVisibleCount);
+    const loadMoreBlock = container.querySelector('.load-more-shell--list');
+    const fragment = document.createDocumentFragment();
+
+    nextItems.forEach((item) => {
+        fragment.appendChild(createRow(item));
+    });
+
+    if (loadMoreBlock) {
+        loadMoreBlock.remove();
+    }
+
+    if (visibleItems.length < items.length) {
+        fragment.appendChild(createLoadMoreListBlock(visibleItems.length, items.length, () => {
+            appendNextListPage(config);
+        }));
+    }
+
+    container.appendChild(fragment);
+}
+
 // Helpers de renderizado
 function renderPaginatedTable(config) {
     const {
@@ -364,8 +431,7 @@ function renderPaginatedTable(config) {
 
     if (visibleItems.length < items.length) {
         rows.push(createLoadMoreTableRow(colspan, visibleItems.length, items.length, () => {
-            increaseVisibleCount(key);
-            rerender();
+            appendNextTablePage(config);
         }));
     }
 
@@ -392,8 +458,7 @@ function renderPaginatedList(config) {
 
     if (visibleItems.length < items.length) {
         children.push(createLoadMoreListBlock(visibleItems.length, items.length, () => {
-            increaseVisibleCount(key);
-            rerender();
+            appendNextListPage(config);
         }));
     }
 
@@ -412,6 +477,125 @@ function createOption(producto) {
     option.value = producto.id;
     option.textContent = `${formatearNombreProducto(producto.nombre, producto.codigo)} - ${getUnidadMedida(producto)}`;
     return option;
+}
+
+function getProductPickerParts(select) {
+    const shell = select ? select.closest('[data-product-picker]') : null;
+
+    if (!shell) {
+        return null;
+    }
+
+    return {
+        shell,
+        trigger: shell.querySelector('[data-product-picker-trigger]'),
+        value: shell.querySelector('[data-product-picker-value]'),
+        menu: shell.querySelector('[data-product-picker-menu]'),
+        options: shell.querySelector('[data-product-picker-options]')
+    };
+}
+
+function closeProductPicker(select) {
+    const parts = getProductPickerParts(select);
+
+    if (!parts) {
+        return;
+    }
+
+    parts.shell.classList.remove('is-open');
+    parts.menu.classList.add('is-hidden');
+    parts.trigger.setAttribute('aria-expanded', 'false');
+}
+
+function closeAllProductPickers(exceptSelect = null) {
+    document.querySelectorAll('.product-picker__native').forEach((select) => {
+        if (exceptSelect && select === exceptSelect) {
+            return;
+        }
+
+        closeProductPicker(select);
+    });
+}
+
+function openProductPicker(select) {
+    const parts = getProductPickerParts(select);
+
+    if (!parts) {
+        return;
+    }
+
+    closeAllProductPickers(select);
+    parts.shell.classList.add('is-open');
+    parts.menu.classList.remove('is-hidden');
+    parts.trigger.setAttribute('aria-expanded', 'true');
+}
+
+function toggleProductPicker(select) {
+    const parts = getProductPickerParts(select);
+
+    if (!parts) {
+        return;
+    }
+
+    if (parts.shell.classList.contains('is-open')) {
+        closeProductPicker(select);
+        return;
+    }
+
+    openProductPicker(select);
+}
+
+function syncProductPicker(select) {
+    const parts = getProductPickerParts(select);
+
+    if (!parts) {
+        return;
+    }
+
+    const selectedOption = select.options[select.selectedIndex] || select.options[0] || null;
+    parts.value.textContent = selectedOption ? selectedOption.textContent : 'Selecciona un producto';
+
+    const optionButtons = Array.from(select.options).map((option) => {
+        const button = document.createElement('button');
+        const isSelected = option.value === select.value;
+
+        button.type = 'button';
+        button.className = 'product-picker__option';
+        button.textContent = option.textContent;
+        button.disabled = option.value === '';
+        button.classList.toggle('is-selected', isSelected);
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+
+        button.addEventListener('click', () => {
+            if (option.value === '') {
+                return;
+            }
+
+            select.value = option.value;
+            syncProductPicker(select);
+            closeProductPicker(select);
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        return button;
+    });
+
+    replaceChildren(parts.options, optionButtons);
+}
+
+function initProductPicker(select) {
+    const parts = getProductPickerParts(select);
+
+    if (!parts || parts.shell.dataset.enhanced === 'true') {
+        return;
+    }
+
+    parts.shell.dataset.enhanced = 'true';
+    parts.trigger.addEventListener('click', () => {
+        toggleProductPicker(select);
+    });
+    syncProductPicker(select);
 }
 
 function actualizarCampoCantidad(prefix) {
@@ -600,7 +784,7 @@ function createProductoRow(producto) {
     const precio = row.querySelector('[data-field="precio"]');
     const editButton = row.querySelector('[data-action="modificar"]');
     const deleteButton = row.querySelector('[data-action="eliminar"]');
-    const hasStock = Number(producto.stock_cantidad) > 0;
+    const stockStatus = getProductStockClass(producto.stock_cantidad);
 
     nombre.textContent = producto.nombre;
     codigo.textContent = producto.codigo || '';
@@ -608,9 +792,9 @@ function createProductoRow(producto) {
     stock.textContent = fmtCantidad(producto.stock_cantidad, producto.unidad_medida);
     precio.textContent = getPrecioTexto(producto);
     stock.classList.remove('product-stock--high', 'product-stock--medium', 'product-stock--empty');
-    stock.classList.add(getProductStockClass(producto.stock_cantidad));
-    row.classList.toggle('product-card--available', hasStock);
-    row.classList.toggle('product-card--empty', !hasStock);
+    stock.classList.add(stockStatus);
+    row.classList.remove('product-card--high', 'product-card--medium', 'product-card--empty');
+    row.classList.add(`product-card--${stockStatus.replace('product-stock--', '')}`);
     editButton.addEventListener('click', () => {
         openProductModal(producto);
     });
@@ -733,6 +917,16 @@ function renderStockList() {
     });
 }
 
+function updateProductModalUnitText(unidad) {
+    const unitLabel = document.getElementById('product-modal-unit');
+
+    if (!unitLabel) {
+        return;
+    }
+
+    unitLabel.textContent = `Unidad de medida: ${getUnidadMedida(unidad)}.`;
+}
+
 function openProductModal(producto) {
     const modal = document.getElementById('product-modal');
 
@@ -743,8 +937,9 @@ function openProductModal(producto) {
     productoEnEdicionId = producto.id;
     document.getElementById('editar-producto-nombre').value = producto.nombre || '';
     document.getElementById('editar-producto-codigo').value = producto.codigo || '';
+    document.getElementById('editar-producto-unidad').value = getUnidadMedida(producto);
     document.getElementById('editar-producto-precio').value = getPrecioUnitario(producto).toFixed(2);
-    document.getElementById('product-modal-unit').textContent = `Unidad de medida: ${getUnidadMedida(producto)}. Precio actual ${getPrecioLabel(producto)}.`;
+    updateProductModalUnitText(producto);
 
     modal.classList.remove('is-hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -772,9 +967,11 @@ async function guardarCambiosProducto() {
 
     const nombreInput = document.getElementById('editar-producto-nombre');
     const codigoInput = document.getElementById('editar-producto-codigo');
+    const unidadInput = document.getElementById('editar-producto-unidad');
     const precioInput = document.getElementById('editar-producto-precio');
     const nombre = nombreInput.value.trim();
     const codigo = codigoInput.value.trim();
+    const unidad_medida = unidadInput ? unidadInput.value : 'kg';
     const precio_unitario = parseFloat(precioInput.value) || 0;
 
     if (!nombre) {
@@ -796,7 +993,7 @@ async function guardarCambiosProducto() {
         const data = await fetchJson(API.productos, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: productoEnEdicionId, nombre, codigo, precio_unitario })
+            body: JSON.stringify({ id: productoEnEdicionId, nombre, codigo, unidad_medida, precio_unitario })
         });
 
         if (data && data.error) {
@@ -1017,6 +1214,13 @@ async function generarFactura() {
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
+    ['v-producto', 'c-producto'].forEach((id) => {
+        const select = document.getElementById(id);
+        if (select) {
+            initProductPicker(select);
+        }
+    });
+
     document.querySelectorAll('.nav-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             showSection(btn.dataset.section, btn);
@@ -1059,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.addEventListener('change', () => {
             const prefix = id.startsWith('v-') ? 'v' : 'c';
+            syncProductPicker(select);
             actualizarCampoCantidad(prefix);
 
             if (prefix === 'v') {
@@ -1098,9 +1303,25 @@ document.addEventListener('DOMContentLoaded', () => {
         productSaveBtn.addEventListener('click', guardarCambiosProducto);
     }
 
+    const productUnitSelect = document.getElementById('editar-producto-unidad');
+    if (productUnitSelect) {
+        productUnitSelect.addEventListener('change', () => {
+            updateProductModalUnitText(productUnitSelect.value);
+        });
+    }
+
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
+            closeAllProductPickers();
             closeProductModal();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        const picker = event.target.closest('[data-product-picker]');
+
+        if (!picker) {
+            closeAllProductPickers();
         }
     });
 
@@ -1143,10 +1364,12 @@ async function cargarProductosEnSelects() {
                 option.value = '';
                 option.textContent = 'No hay productos';
                 replaceChildren(select, [option]);
+                syncProductPicker(select);
                 return;
             }
 
             replaceChildren(select, productos.map(createOption));
+            syncProductPicker(select);
         });
 
         actualizarCampoCantidad('v');

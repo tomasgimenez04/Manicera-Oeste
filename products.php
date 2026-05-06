@@ -138,6 +138,7 @@ if ($metodo === 'PUT') {
     $id = isset($body['id']) ? intval($body['id']) : 0;
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
+    $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
     $precio_unitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
 
     if ($id <= 0) {
@@ -155,6 +156,12 @@ if ($metodo === 'PUT') {
     if ($codigo === '') {
         http_response_code(400);
         echo json_encode(['error' => 'El codigo del producto es obligatorio.']);
+        exit;
+    }
+
+    if (!in_array($unidad_medida, ['kg', 'unidad', 'bandeja'], true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'La unidad de medida debe ser "kg", "unidad" o "bandeja".']);
         exit;
     }
 
@@ -206,8 +213,8 @@ if ($metodo === 'PUT') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('UPDATE productos SET nombre = ?, codigo = ?, precio_unitario = ? WHERE id = ? AND activo = 1');
-    $stmt->bind_param('ssdi', $nombre, $codigo, $precio_unitario, $id);
+    $stmt = $conn->prepare('UPDATE productos SET nombre = ?, codigo = ?, unidad_medida = ?, precio_unitario = ? WHERE id = ? AND activo = 1');
+    $stmt->bind_param('sssdi', $nombre, $codigo, $unidad_medida, $precio_unitario, $id);
 
     if ($stmt->execute()) {
         echo json_encode([
@@ -215,6 +222,7 @@ if ($metodo === 'PUT') {
             'id' => $id,
             'nombre' => $nombre,
             'codigo' => $codigo,
+            'unidad_medida' => $unidad_medida,
             'precio_unitario' => $precio_unitario
         ]);
     } else {
