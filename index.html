@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260504-9">
+  <link rel="stylesheet" href="style.css?v=20260505-2">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260504-8" defer></script>
+  <script src="logic.js?v=20260505-2" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -29,7 +29,7 @@
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
-      <button class="nav-btn" type="button" data-section="tickets">Tickets</button>
+      <button class="nav-btn" type="button" data-section="facturacion">Facturacion</button>
       <button class="nav-btn" type="button" data-section="stock">Stock</button>
       <button class="nav-btn" type="button" data-section="productos">Productos</button>
     </nav>
@@ -239,38 +239,44 @@
       </article>
     </section>
 
-    <section id="tickets" class="section">
+    <section id="facturacion" class="section">
       <article class="panel-card">
         <div class="panel-heading panel-heading--split">
           <div>
-            <h2>Tickets de venta</h2>
-            <p>Consulta y reimprime comprobantes internos generados a partir de las ventas registradas.</p>
+            <h2>Facturacion</h2>
+            <p>Selecciona ventas registradas para generar una factura interna en PDF.</p>
           </div>
 
-          <div class="filter-row">
-            <span class="filter-label">Ver:</span>
-            <button class="filter-btn ticket-filter-btn active" type="button" data-ticket-filter="dia">Hoy</button>
-            <button class="filter-btn ticket-filter-btn" type="button" data-ticket-filter="semana">Esta semana</button>
-            <button class="filter-btn ticket-filter-btn" type="button" data-ticket-filter="mes">Este mes</button>
+          <div class="facturacion-toolbar">
+            <div class="filter-row">
+              <span class="filter-label">Ver:</span>
+              <button class="filter-btn facturacion-filter-btn active" type="button" data-facturacion-filter="dia">Hoy</button>
+              <button class="filter-btn facturacion-filter-btn" type="button" data-facturacion-filter="semana">Esta semana</button>
+              <button class="filter-btn facturacion-filter-btn" type="button" data-facturacion-filter="mes">Este mes</button>
+            </div>
+
+            <button class="btn btn-primary" type="button" id="btn-generar-factura" disabled>
+              Generar factura
+            </button>
           </div>
         </div>
 
         <div class="table-shell">
-          <table class="movements-table tickets-table">
+          <table class="movements-table facturacion-table">
             <thead>
               <tr>
-                <th>N° Ticket</th>
+                <th class="facturacion-col-check">Sel.</th>
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Producto</th>
-                <th>Cantidad</th>
+                <th>Cod.</th>
+                <th>Cant.</th>
                 <th>Total</th>
-                <th>Ticket</th>
               </tr>
             </thead>
-            <tbody id="tabla-tickets">
+            <tbody id="tabla-facturacion">
               <tr>
-                <td colspan="7" class="empty">Sin tickets en este periodo.</td>
+                <td colspan="7" class="empty">Sin ventas en este periodo.</td>
               </tr>
             </tbody>
           </table>
@@ -297,14 +303,14 @@
 
     <section id="productos" class="section">
       <div class="products-layout">
-        <div class="products-tools">
-          <article class="subpanel-card">
-            <div class="panel-heading">
-              <h2>Agregar producto</h2>
-              <p>Incorpora nuevos productos para operar compras y ventas.</p>
-            </div>
+        <article class="subpanel-card subpanel-card--product-create">
+          <div class="panel-heading">
+            <h2>Agregar producto</h2>
+            <p>Incorpora nuevos productos para operar compras y ventas.</p>
+          </div>
 
-            <div class="form-grid form-grid--single form-grid--tight">
+          <div class="product-form-grid">
+            <div class="product-form-column">
               <div class="form-group">
                 <label for="nuevo-producto">Nombre del producto</label>
                 <input type="text" id="nuevo-producto" placeholder="Ej: Mani hervido">
@@ -313,6 +319,13 @@
                 <label for="nuevo-codigo">Codigo del producto</label>
                 <input type="text" id="nuevo-codigo" placeholder="Ej: MH-001">
               </div>
+            </div>
+
+            <div class="product-form-column">
+              <div class="form-group">
+                <label for="nuevo-precio">Precio por unidad de medida ($)</label>
+                <input type="number" id="nuevo-precio" placeholder="Ej: 4800" min="0" step="0.01">
+              </div>
               <div class="form-group">
                 <label for="nueva-unidad-medida">Unidad de medida</label>
                 <select id="nueva-unidad-medida">
@@ -320,40 +333,27 @@
                   <option value="unidad">unidad</option>
                 </select>
               </div>
-              <div class="form-group">
-                <label for="nuevo-precio">Precio por unidad de medida ($)</label>
-                <input type="number" id="nuevo-precio" placeholder="Ej: 4800" min="0" step="0.01">
-              </div>
             </div>
+          </div>
 
-            <button class="btn btn-primary" type="button" id="btn-agregar-producto">
-              Agregar producto
-            </button>
-          </article>
-
-          <article class="subpanel-card">
-            <div class="panel-heading panel-heading--compact">
-              <h2>Buscar producto</h2>
-              <p>Filtra la lista por nombre y/o codigo para encontrar un producto mas rapido.</p>
-            </div>
-
-            <div class="form-grid form-grid--single form-grid--tight">
-              <div class="form-group">
-                <label for="buscar-producto">Nombre del producto</label>
-                <input type="text" id="buscar-producto" placeholder="Ej: Mani tostado">
-              </div>
-              <div class="form-group">
-                <label for="buscar-codigo">Codigo del producto</label>
-                <input type="text" id="buscar-codigo" placeholder="Ej: MT-002">
-              </div>
-            </div>
-          </article>
-        </div>
+          <button class="btn btn-primary" type="button" id="btn-agregar-producto">
+            Agregar producto
+          </button>
+        </article>
 
         <article class="panel-card">
           <div class="panel-heading">
             <h2>Productos activos</h2>
             <p>Listado disponible para operaciones diarias del negocio.</p>
+          </div>
+
+          <div class="products-search-bar">
+            <span class="products-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.44a1 1 0 0 0 1.41-1.42l-4.43-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9a4.5 4.5 0 0 1 0-9Z"></path>
+              </svg>
+            </span>
+            <input type="search" id="buscar-producto" placeholder="Buscar producto por nombre">
           </div>
 
           <div id="productos-lista" class="list-surface">
@@ -386,15 +386,15 @@
     </tr>
   </template>
 
-  <template id="tpl-ticket-row">
-    <tr>
-      <td data-field="id"></td>
+  <template id="tpl-facturacion-row">
+    <tr class="facturacion-row">
+      <td data-field="seleccion"></td>
       <td data-field="fecha"></td>
       <td class="cell-muted" data-field="hora"></td>
       <td data-field="producto"></td>
+      <td data-field="codigo"></td>
       <td data-field="cantidad"></td>
       <td data-field="monto"></td>
-      <td data-field="ticket"></td>
     </tr>
   </template>
 
@@ -430,62 +430,6 @@
       </div>
     </div>
   </template>
-
-  <!-- Modal del ticket -->
-  <div class="ticket-modal is-hidden" id="ticket-modal" aria-hidden="true">
-    <div class="ticket-modal__backdrop" data-ticket-close></div>
-    <div class="ticket-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ticket-title">
-      <div class="ticket-modal__actions">
-        <button class="btn btn-secondary btn-sm" type="button" id="ticket-pdf-btn">Descargar PDF</button>
-        <button class="btn btn-primary btn-sm" type="button" id="ticket-close-btn">Cerrar</button>
-      </div>
-
-      <article class="ticket-sheet" id="ticket-sheet">
-        <header class="ticket-sheet__header">
-          <strong class="ticket-brand">MANICERA OESTE</strong>
-          <p class="ticket-sheet__subtitle" id="ticket-title">TICKET DE CONTROL</p>
-        </header>
-
-        <section class="ticket-block">
-          <div class="ticket-line">
-            <span class="ticket-label">Nro Ticket:</span>
-            <span class="ticket-value" id="ticket-numero">-</span>
-          </div>
-          <div class="ticket-line">
-            <span class="ticket-label">Fecha:</span>
-            <span class="ticket-value" id="ticket-fecha">-</span>
-          </div>
-          <div class="ticket-line">
-            <span class="ticket-label">Hora:</span>
-            <span class="ticket-value" id="ticket-hora">-</span>
-          </div>
-        </section>
-
-        <section class="ticket-block">
-          <div class="ticket-line">
-            <span class="ticket-label">Producto:</span>
-            <span class="ticket-value" id="ticket-producto">-</span>
-          </div>
-          <div class="ticket-line">
-            <span class="ticket-label">Codigo:</span>
-            <span class="ticket-value" id="ticket-codigo">-</span>
-          </div>
-          <div class="ticket-line">
-            <span class="ticket-label">Cantidad:</span>
-            <span class="ticket-value" id="ticket-cantidad">-</span>
-          </div>
-          <div class="ticket-line">
-            <span class="ticket-label">Precio unitario:</span>
-            <span class="ticket-value" id="ticket-precio-unitario">-</span>
-          </div>
-          <div class="ticket-line ticket-line--total">
-            <span class="ticket-label">Monto total:</span>
-            <span class="ticket-value" id="ticket-total">-</span>
-          </div>
-        </section>
-      </article>
-    </div>
-  </div>
 
   <div class="product-modal is-hidden" id="product-modal" aria-hidden="true">
     <div class="product-modal__backdrop" data-product-close></div>

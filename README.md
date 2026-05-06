@@ -1,6 +1,6 @@
 # Manicera Oeste - Sistema de Caja
 
-Aplicacion web hecha para registrar compras, ventas, stock y tickets internos de control.
+Aplicacion web hecha para registrar compras, ventas, stock y facturacion interna.
 
 ## Que hace
 
@@ -8,20 +8,21 @@ Aplicacion web hecha para registrar compras, ventas, stock y tickets internos de
 - Calcula stock automaticamente desde los movimientos
 - Permite usar productos por `kg` o por `unidad`
 - Muestra balance por dia, semana y mes
-- Genera tickets internos para ventas
+- Genera facturas internas en PDF
 
 ## Estructura del proyecto
 
 Cada archivo tiene una responsabilidad concreta:
 
-- `index.html`: estructura visual de la app, secciones, templates y modal del ticket
-- `style.css`: todos los estilos de la interfaz, responsive e impresion
+- `index.html`: estructura visual de la app, secciones y templates
+- `style.css`: todos los estilos de la interfaz y responsive
 - `logic.js`: logica del frontend, eventos, renderizado y llamadas a la API
 - `connection.php`: conexion a MySQL
 - `products.php`: API para listar, crear y desactivar productos
 - `movements.php`: API para registrar y consultar movimientos
 - `stock.php`: API para consultar stock actual
-- `tickets.php`: API para listar tickets de ventas
+- `invoices.php`: API para guardar facturas internas
+- `invoices.sql`: SQL de la tabla `facturas`
 - `test.php`: chequeo simple de conexion
 
 ## Base de datos esperada
@@ -30,6 +31,7 @@ Tablas principales:
 
 - `productos`
 - `movimientos`
+- `facturas`
 
 Campos importantes usados por la app:
 

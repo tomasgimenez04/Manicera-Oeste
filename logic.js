@@ -13,7 +13,7 @@ const API = {
     productos: new URL('products.php', APP_BASE).href,
     movimientos: new URL('movements.php', APP_BASE).href,
     stock: new URL('stock.php', APP_BASE).href,
-    tickets: new URL('tickets.php', APP_BASE).href
+    invoices: new URL('invoices.php', APP_BASE).href
 };
 
 const PAGE_SIZE = 10;
@@ -21,16 +21,16 @@ const PAGE_SIZE = 10;
 let productos = [];
 let movimientosInicio = [];
 let movimientosBalance = [];
-let ticketsVentas = [];
+let ventasFacturacion = [];
 let stockActual = [];
 let filtroActual = 'dia';
-let filtroTicketsActual = 'dia';
-let ticketActual = null;
+let filtroFacturacionActual = 'dia';
 let productoEnEdicionId = null;
+let facturacionSeleccionada = new Set();
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
-    tickets: PAGE_SIZE,
+    facturacion: PAGE_SIZE,
     stock: PAGE_SIZE,
     productos: PAGE_SIZE
 };
@@ -95,7 +95,7 @@ function fmtCantidad(value, unidad = 'kg') {
     return `${formatCantidadNumero(value, unidad, 1, 1)} ${getUnidadTexto(unidad, value)}`;
 }
 
-function fmtCantidadTicket(value, unidad = 'kg') {
+function fmtCantidadDetalle(value, unidad = 'kg') {
     return `${formatCantidadNumero(value, unidad, 2, 2)} ${getUnidadTexto(unidad, value)}`;
 }
 
@@ -109,7 +109,7 @@ function fmtPrice(value) {
     });
 }
 
-function fmtCurrencyTicket(value) {
+function fmtCurrencyAmount(value) {
     const monto = Number(value);
     return (Number.isFinite(monto) ? monto : 0).toLocaleString('es-AR', {
         style: 'currency',
@@ -199,7 +199,7 @@ function getPrecioTexto(source) {
     return `${fmtPrice(getPrecioUnitario(source))} ${getPrecioLabel(source)}`;
 }
 
-function getPrecioUnitarioTicket(source) {
+function getPrecioUnitarioMovimiento(source) {
     const cantidad = Number(source && source.cantidad != null ? source.cantidad : 0);
     const monto = Number(source && source.monto != null ? source.monto : 0);
 
@@ -210,31 +210,21 @@ function getPrecioUnitarioTicket(source) {
     return monto / cantidad;
 }
 
-function getPrecioUnitarioTicketTexto(source) {
-    return `${fmtPrice(getPrecioUnitarioTicket(source))} ${getPrecioLabel(source)}`;
+function formatInvoiceNumber(numero) {
+    const value = Number(numero) || 0;
+    return String(value).padStart(5, '0');
 }
 
-function getTicketCodigo(item) {
-    return item && item.codigo_producto ? item.codigo_producto : (item && item.codigo ? item.codigo : '');
+function formatInvoiceFileDate(fecha) {
+    return String(fecha || '').replace(/\//g, '');
 }
 
-function buildTicketData(item) {
-    return {
-        id: item && item.id ? item.id : '-',
-        fecha: item && item.fecha ? item.fecha : '-',
-        hora: item && item.hora ? item.hora : '-',
-        producto: item && item.producto ? item.producto : '-',
-        codigo: getTicketCodigo(item) || 'Sin codigo',
-        unidad_medida: getUnidadMedida(item),
-        cantidad: item && item.cantidad != null ? item.cantidad : (item && item.kg != null ? item.kg : 0),
-        monto: item && item.monto != null ? item.monto : 0,
-        precio_unitario: getPrecioUnitarioTicket(item)
-    };
+function getInvoiceFileName(numero, fecha) {
+    return `factura-N${formatInvoiceNumber(numero)}-${formatInvoiceFileDate(fecha)}.pdf`;
 }
 
-function getTicketFileName(ticket) {
-    const fecha = String(ticket.fecha || 'sin-fecha').replace(/\//g, '-');
-    return `ticket-${ticket.id}-${fecha}.pdf`;
+function getSelectedFacturacionItems() {
+    return ventasFacturacion.filter((item) => facturacionSeleccionada.has(Number(item.id)));
 }
 
 function cloneTemplate(id) {
@@ -478,34 +468,62 @@ function createBalanceRow(item) {
     return row;
 }
 
-function createTicketRow(item) {
-    const row = cloneTemplate('tpl-ticket-row');
-    const id = row.querySelector('[data-field="id"]');
+function updateFacturacionButtonState() {
+    const button = document.getElementById('btn-generar-factura');
+
+    if (!button) {
+        return;
+    }
+
+    button.disabled = facturacionSeleccionada.size === 0;
+}
+
+function setFacturacionSeleccion(itemId, checked, row) {
+    const numericId = Number(itemId);
+
+    if (checked) {
+        facturacionSeleccionada.add(numericId);
+    } else {
+        facturacionSeleccionada.delete(numericId);
+    }
+
+    if (row) {
+        row.classList.toggle('is-selected', checked);
+    }
+
+    updateFacturacionButtonState();
+}
+
+function createFacturacionRow(item) {
+    const row = cloneTemplate('tpl-facturacion-row');
+    const seleccion = row.querySelector('[data-field="seleccion"]');
     const fecha = row.querySelector('[data-field="fecha"]');
     const hora = row.querySelector('[data-field="hora"]');
     const producto = row.querySelector('[data-field="producto"]');
+    const codigo = row.querySelector('[data-field="codigo"]');
     const cantidad = row.querySelector('[data-field="cantidad"]');
     const monto = row.querySelector('[data-field="monto"]');
-    const ticket = row.querySelector('[data-field="ticket"]');
-    const button = document.createElement('button');
+    const checkbox = document.createElement('input');
+    const isSelected = facturacionSeleccionada.has(Number(item.id));
 
-    id.textContent = `#${item.id}`;
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
-    producto.textContent = formatearNombreProducto(item.producto, getTicketCodigo(item));
+    producto.textContent = item.producto;
+    codigo.textContent = item.codigo || '-';
     cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
-    monto.textContent = fmtCurrencyTicket(item.monto);
+    monto.textContent = fmtCurrencyAmount(item.monto);
     monto.className = 'amount positive';
-    ticket.className = 'ticket-cell';
 
-    button.type = 'button';
-    button.className = 'btn btn-secondary btn-sm ticket-open-btn';
-    button.textContent = 'Ver ticket';
-    button.addEventListener('click', () => {
-        openTicketModal(item);
+    checkbox.type = 'checkbox';
+    checkbox.className = 'selection-checkbox';
+    checkbox.checked = isSelected;
+    checkbox.setAttribute('aria-label', `Seleccionar venta ${item.id}`);
+    checkbox.addEventListener('change', () => {
+        setFacturacionSeleccion(item.id, checkbox.checked, row);
     });
 
-    replaceChildren(ticket, [button]);
+    row.classList.toggle('is-selected', isSelected);
+    replaceChildren(seleccion, [checkbox]);
 
     return row;
 }
@@ -563,35 +581,15 @@ function getBusquedaProductoNombre() {
     return input ? input.value : '';
 }
 
-function getBusquedaProductoCodigo() {
-    const input = document.getElementById('buscar-codigo');
-    return input ? input.value : '';
-}
-
-function coincideCodigoEnOrden(codigoProducto, busquedaCodigo) {
-    const codigoNormalizado = normalizarTexto(codigoProducto);
-    const busquedaNormalizada = normalizarTexto(busquedaCodigo);
-
-    if (!busquedaNormalizada) {
-        return true;
-    }
-
-    return codigoNormalizado.startsWith(busquedaNormalizada);
-}
-
 function getProductosFiltrados() {
     const terminoNombre = normalizarTexto(getBusquedaProductoNombre());
-    const terminoCodigo = normalizarTexto(getBusquedaProductoCodigo());
 
-    if (!terminoNombre && !terminoCodigo) {
+    if (!terminoNombre) {
         return productos;
     }
 
     return productos.filter((producto) => {
-        const coincideNombre = !terminoNombre || normalizarTexto(producto.nombre).includes(terminoNombre);
-        const coincideCodigo = coincideCodigoEnOrden(producto.codigo, terminoCodigo);
-
-        return coincideNombre && coincideCodigo;
+        return normalizarTexto(producto.nombre).includes(terminoNombre);
     });
 }
 
@@ -657,20 +655,20 @@ function renderBalanceTable() {
     });
 }
 
-function renderTicketsTable() {
-    const tbody = document.getElementById('tabla-tickets');
+function renderFacturacionTable() {
+    const tbody = document.getElementById('tabla-facturacion');
     if (!tbody) {
         return;
     }
 
     renderPaginatedTable({
         tbody,
-        items: ticketsVentas,
-        key: 'tickets',
+        items: ventasFacturacion,
+        key: 'facturacion',
         colspan: 7,
-        emptyMessage: 'Sin tickets en este periodo.',
-        createRow: createTicketRow,
-        rerender: renderTicketsTable
+        emptyMessage: 'Sin ventas en este periodo.',
+        createRow: createFacturacionRow,
+        rerender: renderFacturacionTable
     });
 }
 
@@ -772,44 +770,137 @@ async function guardarCambiosProducto() {
     }
 }
 
-// Ticket y exportacion
-function openTicketModal(item) {
-    const modal = document.getElementById('ticket-modal');
+function truncatePdfText(doc, text, maxWidth) {
+    let value = String(text || '');
 
-    if (!modal) {
-        return;
+    while (value.length > 0 && doc.getTextWidth(value) > maxWidth) {
+        value = `${value.slice(0, -4)}...`;
     }
 
-    ticketActual = buildTicketData(item);
-
-    document.getElementById('ticket-numero').textContent = `#${ticketActual.id}`;
-    document.getElementById('ticket-fecha').textContent = ticketActual.fecha;
-    document.getElementById('ticket-hora').textContent = ticketActual.hora;
-    document.getElementById('ticket-producto').textContent = ticketActual.producto;
-    document.getElementById('ticket-codigo').textContent = ticketActual.codigo;
-    document.getElementById('ticket-cantidad').textContent = fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida);
-    document.getElementById('ticket-precio-unitario').textContent = getPrecioUnitarioTicketTexto(ticketActual);
-    document.getElementById('ticket-total').textContent = fmtCurrencyTicket(ticketActual.monto);
-
-    modal.classList.remove('is-hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
+    return value || '-';
 }
 
-function closeTicketModal() {
-    const modal = document.getElementById('ticket-modal');
+function drawInvoicePdf(doc, factura) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 14;
+    const contentRight = pageWidth - marginX;
+    const qtyX = marginX;
+    const productX = 42;
+    const codeX = 116;
+    const unitX = 156;
+    const totalX = contentRight;
+    let y = 20;
 
-    if (!modal) {
-        return;
+    const drawSeparator = () => {
+        doc.setLineWidth(0.4);
+        doc.line(marginX, y, contentRight, y);
+    };
+
+    const drawTableHeader = () => {
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(10);
+        doc.text('CANT.', qtyX, y);
+        doc.text('PRODUCTO', productX, y);
+        doc.text('COD.', codeX, y);
+        doc.text('$ UNIT', unitX, y, { align: 'right' });
+        doc.text('IMPORTE', totalX, y, { align: 'right' });
+        y += 3;
+        drawSeparator();
+        y += 6;
+    };
+
+    const beginFirstPage = () => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(20);
+        doc.text('MANICERA OESTE', marginX, y);
+
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.text('DISTRIBUIDORA MAYORISTA', marginX, y);
+
+        y += 6;
+        doc.setFontSize(9);
+        doc.text('Direccion - Localidad, Provincia', marginX, y);
+
+        y += 7;
+        drawSeparator();
+
+        y += 8;
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(12);
+        doc.text(`FACTURA N°: ${factura.numeroFormateado}`, marginX, y);
+        doc.text(`FECHA: ${factura.fecha}`, contentRight, y, { align: 'right' });
+
+        y += 8;
+        drawSeparator();
+        y += 8;
+        drawTableHeader();
+    };
+
+    const beginNextPage = () => {
+        doc.addPage();
+        y = 18;
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(11);
+        doc.text(`FACTURA N°: ${factura.numeroFormateado}`, marginX, y);
+        doc.text(`FECHA: ${factura.fecha}`, contentRight, y, { align: 'right' });
+        y += 6;
+        drawSeparator();
+        y += 8;
+        drawTableHeader();
+    };
+
+    beginFirstPage();
+
+    factura.items.forEach((item) => {
+        if (y > pageHeight - 42) {
+            beginNextPage();
+        }
+
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(10);
+        doc.text(fmtCantidadDetalle(item.cantidad, item.unidad_medida), qtyX, y);
+        doc.text(truncatePdfText(doc, item.producto, 68), productX, y);
+        doc.text(truncatePdfText(doc, item.codigo || '-', 22), codeX, y);
+        doc.text(fmtCurrencyAmount(getPrecioUnitarioMovimiento(item)), unitX, y, { align: 'right' });
+        doc.text(fmtCurrencyAmount(item.monto), totalX, y, { align: 'right' });
+        y += 7;
+    });
+
+    if (y > pageHeight - 36) {
+        beginNextPage();
     }
 
-    modal.classList.add('is-hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
+    y += 2;
+    drawSeparator();
+    y += 10;
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(11);
+    doc.text('SUBTOTAL:', 136, y);
+    doc.text(fmtCurrencyAmount(factura.total), totalX, y, { align: 'right' });
+
+    y += 8;
+    doc.setFont('courier', 'bold');
+    doc.text('TOTAL:', 136, y);
+    doc.text(fmtCurrencyAmount(factura.total), totalX, y, { align: 'right' });
+
+    y += 12;
+    drawSeparator();
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Comprobante interno - Manicera Oeste', pageWidth / 2, y, { align: 'center' });
 }
 
-function downloadTicketPdf() {
-    if (!ticketActual) {
+async function generarFactura() {
+    const items = getSelectedFacturacionItems();
+
+    if (!items.length) {
+        showToast('Selecciona al menos una venta para facturar.', 'error');
         return;
     }
 
@@ -818,52 +909,55 @@ function downloadTicketPdf() {
         return;
     }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [210, 80]
-    });
-    const left = 7;
-    const right = 73;
-    const center = 40;
-    let y = 16;
+    const button = document.getElementById('btn-generar-factura');
+    const total = items.reduce((sum, item) => sum + Number(item.monto || 0), 0);
+    const itemsIds = items.map((item) => Number(item.id));
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.text('MANICERA OESTE', center, y, { align: 'center' });
+    if (button) {
+        button.disabled = true;
+    }
 
-    y += 9;
-    doc.setFontSize(11);
-    doc.text('TICKET DE CONTROL', center, y, { align: 'center' });
+    try {
+        const response = await fetchJson(API.invoices, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items_ids: itemsIds,
+                total
+            })
+        });
 
-    y += 7;
-    doc.line(left, y, right, y);
+        if (!response || !response.ok) {
+            throw new Error('No se pudo guardar la factura.');
+        }
 
-    const drawLine = (label, value, large = false) => {
-        y += large ? 10 : 8;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(large ? 11 : 9);
-        doc.text(label, left, y);
-        doc.setFont('helvetica', large ? 'bold' : 'normal');
-        doc.setFontSize(large ? 13 : 9);
-        doc.text(String(value), right, y, { align: 'right' });
-    };
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        const factura = {
+            numero: response.numero,
+            numeroFormateado: response.numero_formateado || formatInvoiceNumber(response.numero),
+            fecha: response.fecha || new Date().toLocaleDateString('es-AR'),
+            total,
+            items
+        };
 
-    drawLine('Nro Ticket:', `#${ticketActual.id}`);
-    drawLine('Fecha:', ticketActual.fecha);
-    drawLine('Hora:', ticketActual.hora);
+        drawInvoicePdf(doc, factura);
+        doc.save(getInvoiceFileName(factura.numeroFormateado, factura.fecha));
 
-    y += 5;
-    doc.line(left, y, right, y);
-
-    drawLine('Producto:', ticketActual.producto);
-    drawLine('Codigo:', ticketActual.codigo);
-    drawLine('Cantidad:', fmtCantidadTicket(ticketActual.cantidad, ticketActual.unidad_medida));
-    drawLine('Precio unitario:', getPrecioUnitarioTicketTexto(ticketActual));
-    drawLine('Monto total:', fmtCurrencyTicket(ticketActual.monto), true);
-
-    doc.save(getTicketFileName(ticketActual));
+        facturacionSeleccionada.clear();
+        updateFacturacionButtonState();
+        renderFacturacionTable();
+        showToast(`Factura N${factura.numeroFormateado} generada.`, 'venta');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al generar la factura.'), 'error');
+    } finally {
+        updateFacturacionButtonState();
+    }
 }
 
 // Inicializacion y eventos de interfaz
@@ -882,9 +976,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.querySelectorAll('.ticket-filter-btn').forEach((btn) => {
+    document.querySelectorAll('.facturacion-filter-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
-            setTicketFiltro(btn.dataset.ticketFilter, btn);
+            setFacturacionFiltro(btn.dataset.facturacionFilter, btn);
         });
     });
 
@@ -897,6 +991,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const agregarBtn = document.getElementById('btn-agregar-producto');
     if (agregarBtn) {
         agregarBtn.addEventListener('click', agregarProducto);
+    }
+
+    const facturaBtn = document.getElementById('btn-generar-factura');
+    if (facturaBtn) {
+        facturaBtn.addEventListener('click', generarFactura);
     }
 
     ['v-producto', 'c-producto'].forEach((id) => {
@@ -920,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ventaCantidadInput.addEventListener('input', calcularMontoVenta);
     }
 
-    ['buscar-producto', 'buscar-codigo'].forEach((id) => {
+    ['buscar-producto'].forEach((id) => {
         const input = document.getElementById(id);
         if (!input) {
             return;
@@ -931,20 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderProductosList();
         });
     });
-
-    document.querySelectorAll('[data-ticket-close]').forEach((element) => {
-        element.addEventListener('click', closeTicketModal);
-    });
-
-    const ticketCloseBtn = document.getElementById('ticket-close-btn');
-    if (ticketCloseBtn) {
-        ticketCloseBtn.addEventListener('click', closeTicketModal);
-    }
-
-    const ticketPdfBtn = document.getElementById('ticket-pdf-btn');
-    if (ticketPdfBtn) {
-        ticketPdfBtn.addEventListener('click', downloadTicketPdf);
-    }
 
     document.querySelectorAll('[data-product-close]').forEach((element) => {
         element.addEventListener('click', closeProductModal);
@@ -962,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-            closeTicketModal();
             closeProductModal();
         }
     });
@@ -988,7 +1072,7 @@ function showSection(id, btn) {
     if (id === 'inicio') cargarInicio();
     if (id === 'registrar') cargarProductosEnSelects();
     if (id === 'balance') cargarBalance();
-    if (id === 'tickets') cargarTickets();
+    if (id === 'facturacion') cargarFacturacion();
     if (id === 'stock') cargarStock();
     if (id === 'productos') cargarProductos();
 }
@@ -1111,11 +1195,11 @@ function setFiltro(filtro, btn) {
     cargarBalance();
 }
 
-function setTicketFiltro(filtro, btn) {
-    filtroTicketsActual = filtro;
-    document.querySelectorAll('.ticket-filter-btn').forEach((filterBtn) => filterBtn.classList.remove('active'));
+function setFacturacionFiltro(filtro, btn) {
+    filtroFacturacionActual = filtro;
+    document.querySelectorAll('.facturacion-filter-btn').forEach((filterBtn) => filterBtn.classList.remove('active'));
     btn.classList.add('active');
-    cargarTickets();
+    cargarFacturacion();
 }
 
 async function cargarBalance() {
@@ -1145,14 +1229,17 @@ async function cargarBalance() {
     }
 }
 
-async function cargarTickets() {
+async function cargarFacturacion() {
     try {
-        ticketsVentas = ensureArray(await fetchJson(`${API.tickets}?filtro=${filtroTicketsActual}`));
-        resetVisibleCount('tickets');
-        renderTicketsTable();
+        const movimientos = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroFacturacionActual}&tipo=venta`));
+        ventasFacturacion = movimientos.filter((item) => item.tipo === 'venta');
+        facturacionSeleccionada.clear();
+        resetVisibleCount('facturacion');
+        renderFacturacionTable();
+        updateFacturacionButtonState();
     } catch (error) {
         console.error(error);
-        showToast(getErrorMessage(error, 'Error al cargar tickets.'), 'error');
+        showToast(getErrorMessage(error, 'Error al cargar ventas para facturacion.'), 'error');
     }
 }
 

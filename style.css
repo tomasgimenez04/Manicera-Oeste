@@ -191,6 +191,17 @@ section {
   gap: 24px;
 }
 
+.product-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 28px;
+}
+
+.product-form-column {
+  display: grid;
+  gap: 18px;
+}
+
 .products-tools {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -246,6 +257,10 @@ section {
 
 #productos .subpanel-card .btn {
   width: 100%;
+}
+
+#productos .subpanel-card--product-create {
+  gap: 22px;
 }
 
 #registrar .form-card {
@@ -560,6 +575,14 @@ textarea:focus {
   transform: translateY(-1px);
 }
 
+.btn:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
 .btn-primary {
   background: var(--primary-strong);
   color: #ffffff;
@@ -604,24 +627,17 @@ textarea:focus {
   font-size: 14px;
 }
 
-.ticket-open-btn {
-  min-height: 38px;
-  padding: 9px 13px;
-  background: #2563eb;
-  color: #ffffff;
-  border: 1px solid #2563eb;
-  white-space: nowrap;
-}
-
-.ticket-open-btn:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-}
-
 /* Tablas */
 .table-shell {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.facturacion-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .movements-table {
@@ -648,20 +664,6 @@ textarea:focus {
   text-align: right;
 }
 
-.tickets-table th:last-child {
-  padding-right: 42px;
-}
-
-.tickets-table th:nth-child(5),
-.tickets-table td:nth-child(5) {
-  padding-right: 24px;
-}
-
-.tickets-table th:nth-child(6),
-.tickets-table td:nth-child(6) {
-  padding-left: 24px;
-}
-
 .movements-table td {
   padding: 16px 12px;
   border-bottom: 1px solid #f1f5f9;
@@ -678,9 +680,31 @@ textarea:focus {
   border-bottom: none;
 }
 
-.ticket-cell {
+.facturacion-col-check,
+.facturacion-table td:first-child {
+  width: 58px;
+  text-align: center;
+}
+
+.facturacion-table th:last-child,
+.facturacion-table td:last-child {
   text-align: right;
-  white-space: nowrap;
+}
+
+.selection-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary-strong);
+  cursor: pointer;
+}
+
+.facturacion-row.is-selected {
+  background: rgba(31, 41, 55, 0.06);
+}
+
+.facturacion-row.is-selected:hover {
+  background: rgba(31, 41, 55, 0.08);
 }
 
 .load-more-cell {
@@ -774,6 +798,33 @@ textarea:focus {
   border: 1px solid #eef2f7;
   border-radius: 18px;
   padding: 6px 18px;
+}
+
+.products-search-bar {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.products-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.products-search-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.products-search-bar input {
+  padding-left: 44px;
 }
 
 .stock-row {
@@ -952,125 +1003,6 @@ textarea:focus {
   min-width: 104px;
 }
 
-/* Modal de ticket */
-.ticket-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 150;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 32px 20px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.ticket-modal.is-hidden {
-  display: none;
-}
-
-.ticket-modal__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.58);
-  backdrop-filter: blur(6px);
-}
-
-.ticket-modal__dialog {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 760px);
-  max-height: calc(100vh - 64px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.ticket-modal__actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.ticket-sheet {
-  width: min(100%, 610px);
-  margin: 0 auto;
-  padding: 48px 42px 36px;
-  background: #ffffff;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  border-radius: 24px;
-  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
-}
-
-.ticket-sheet__header {
-  padding-bottom: 26px;
-  border-bottom: 3px solid #111827;
-  text-align: center;
-}
-
-.ticket-brand {
-  display: block;
-  font-size: clamp(42px, 7vw, 72px);
-  line-height: 0.95;
-  letter-spacing: 0.04em;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.ticket-sheet__subtitle {
-  margin-top: 14px;
-  font-size: clamp(24px, 4vw, 44px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.ticket-block {
-  padding: 26px 0;
-  border-bottom: 3px solid #111827;
-}
-
-.ticket-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 20px;
-  padding: 14px 0;
-  border-bottom: 1px dashed #cbd5e1;
-}
-
-.ticket-line:last-child {
-  border-bottom: none;
-}
-
-.ticket-line--total .ticket-label {
-  font-size: 24px;
-  font-weight: 900;
-}
-
-.ticket-line--total .ticket-value {
-  font-size: clamp(30px, 5vw, 54px);
-  font-weight: 900;
-}
-
-.ticket-label,
-.ticket-value {
-  color: #111827;
-}
-
-.ticket-label {
-  font-size: clamp(18px, 3.3vw, 28px);
-  font-weight: 800;
-}
-
-.ticket-value {
-  font-size: clamp(18px, 3.3vw, 28px);
-  font-weight: 500;
-  text-align: right;
-}
-
 .product-modal {
   position: fixed;
   inset: 0;
@@ -1163,8 +1095,18 @@ textarea:focus {
     align-items: flex-start;
   }
 
+  .facturacion-toolbar {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .facturacion-toolbar .btn {
+    width: 100%;
+  }
+
   .form-grid,
-  .form-grid--triple {
+  .form-grid--triple,
+  .product-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1221,95 +1163,11 @@ textarea:focus {
     bottom: 12px;
   }
 
-  .ticket-modal {
-    padding: 18px 12px;
-  }
-
-  .ticket-modal__dialog {
-    max-height: calc(100vh - 36px);
-  }
-
-  .ticket-modal__actions {
-    justify-content: center;
-  }
-
-  .ticket-sheet {
-    width: 100%;
-    padding: 32px 20px 28px;
-    border-radius: 22px;
-  }
-
-  .ticket-line {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .ticket-value {
-    text-align: left;
-  }
-
   .product-modal__actions {
     flex-direction: column-reverse;
   }
 
   .product-modal__actions .btn {
     width: 100%;
-  }
-}
-
-/* Impresion */
-@media print {
-  @page {
-    size: 80mm auto;
-    margin: 0;
-  }
-
-  body {
-    margin: 0;
-    width: 80mm;
-    background: #ffffff;
-  }
-
-  body * {
-    visibility: hidden !important;
-  }
-
-  .ticket-modal,
-  .ticket-modal * {
-    visibility: visible !important;
-  }
-
-  .ticket-modal {
-    position: static;
-    inset: auto;
-    display: block;
-    padding: 0;
-  }
-
-  .ticket-modal__backdrop,
-  .ticket-modal__actions,
-  .toast {
-    display: none !important;
-  }
-
-  .ticket-modal__dialog {
-    width: auto;
-    max-width: none;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .ticket,
-  .ticket-sheet {
-    width: 72mm;
-    margin: 0 auto;
-  }
-
-  .ticket-sheet {
-    max-width: none;
-    padding: 12px 10px 8px;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
   }
 }
