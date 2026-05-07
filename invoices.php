@@ -22,8 +22,10 @@ $body = json_decode(file_get_contents('php://input'), true);
 $items_ids = isset($body['items_ids']) && is_array($body['items_ids']) ? $body['items_ids'] : [];
 $total = isset($body['total']) ? floatval($body['total']) : 0;
 
-$items_ids = array_values(array_unique(array_filter(array_map('intval', $items_ids), function ($value) {
-    return $value > 0;
+$items_ids = array_values(array_unique(array_filter(array_map(function ($value) {
+    return trim((string) $value);
+}, $items_ids), function ($value) {
+    return $value !== '';
 })));
 
 if (count($items_ids) === 0) {

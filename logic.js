@@ -19,8 +19,8 @@ const API = {
 };
 
 const INVOICE_ASSET_URLS = {
-    instagram: new URL('Imagenes/Logo instagram.webp', APP_BASE).href,
-    whatsapp: new URL('Imagenes/Logo de whatsapp.webp', APP_BASE).href
+    instagram: new URL('Imagenes/Logo de instagram.png', APP_BASE).href,
+    whatsapp: new URL('Imagenes/Logo de Whatsapp.png', APP_BASE).href
 };
 
 const PAGE_SIZE = 10;
@@ -338,8 +338,24 @@ function getInvoiceFileName(numero, fecha) {
     return `factura-N${formatInvoiceNumber(numero)}-${formatInvoiceFileDate(fecha)}.pdf`;
 }
 
+function getFacturacionItemId(item) {
+    if (!item) {
+        return '';
+    }
+
+    if (item.facturacion_id) {
+        return String(item.facturacion_id);
+    }
+
+    if (item.id != null) {
+        return `mov-${item.id}`;
+    }
+
+    return '';
+}
+
 function getSelectedFacturacionItems() {
-    return ventasFacturacion.filter((item) => facturacionSeleccionada.has(Number(item.id)));
+    return ventasFacturacion.filter((item) => facturacionSeleccionada.has(getFacturacionItemId(item)));
 }
 
 function cloneTemplate(id) {
@@ -892,12 +908,16 @@ function updateFacturacionSelectionSummary() {
 }
 
 function setFacturacionSeleccion(itemId, checked, row) {
-    const numericId = Number(itemId);
+    const selectionId = String(itemId || '');
+
+    if (!selectionId) {
+        return;
+    }
 
     if (checked) {
-        facturacionSeleccionada.add(numericId);
+        facturacionSeleccionada.add(selectionId);
     } else {
-        facturacionSeleccionada.delete(numericId);
+        facturacionSeleccionada.delete(selectionId);
     }
 
     if (row) {
@@ -918,11 +938,15 @@ function createFacturacionRow(item) {
     const cantidad = row.querySelector('[data-field="cantidad"]');
     const monto = row.querySelector('[data-field="monto"]');
     const checkbox = document.createElement('input');
-    const isSelected = facturacionSeleccionada.has(Number(item.id));
+    const selectionId = getFacturacionItemId(item);
+    const isSelected = facturacionSeleccionada.has(selectionId);
+    const detailText = item.facturacion_origen === 'cuenta_corriente'
+        ? `${item.producto} - Cuenta corriente: ${item.cliente}`
+        : item.producto;
 
     fecha.textContent = item.fecha;
     hora.textContent = item.hora;
-    producto.textContent = item.producto;
+    producto.textContent = detailText;
     codigo.textContent = item.codigo || '-';
     cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
     monto.textContent = fmtCurrencyAmount(item.monto);
@@ -931,9 +955,9 @@ function createFacturacionRow(item) {
     checkbox.type = 'checkbox';
     checkbox.className = 'selection-checkbox';
     checkbox.checked = isSelected;
-    checkbox.setAttribute('aria-label', `Seleccionar venta ${item.id}`);
+    checkbox.setAttribute('aria-label', `Seleccionar venta ${selectionId}`);
     checkbox.addEventListener('change', () => {
-        setFacturacionSeleccion(item.id, checkbox.checked, row);
+        setFacturacionSeleccion(selectionId, checkbox.checked, row);
     });
 
     row.classList.toggle('is-selected', isSelected);
@@ -1299,7 +1323,7 @@ function renderCuentaCorrienteFormItems() {
         const quitar = document.createElement('td');
         const removeButton = document.createElement('button');
 
-        producto.textContent = formatearNombreProducto(item.producto, item.codigo);
+        producto.textContent = item.producto;
         cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
         precio.textContent = fmtCurrencyAmount(item.precio_unitario);
         subtotal.textContent = fmtCurrencyAmount(item.subtotal);
@@ -1307,7 +1331,9 @@ function renderCuentaCorrienteFormItems() {
 
         removeButton.type = 'button';
         removeButton.className = 'btn btn-primary btn-danger btn-sm account-remove-item-btn';
-        removeButton.textContent = 'Quitar';
+        removeButton.textContent = '×';
+        removeButton.setAttribute('aria-label', `Quitar ${item.producto}`);
+        removeButton.title = `Quitar ${item.producto}`;
         removeButton.addEventListener('click', () => {
             quitarItemDelFormulario(index);
         });
@@ -1534,6 +1560,68 @@ function renderAccountHistoryRows(items) {
     if (totalEl) {
         totalEl.textContent = fmtCurrencyAmount(total);
     }
+}
+
+function formatSqlDateParts(value) {
+    const text = String(value || '').trim();
+
+    if (!text) {
+        return {
+            fecha: '-',
+            hora: '-'
+        };
+    }
+
+    const [datePart = '', timePart = ''] = text.split(' ');
+    const [year, month, day] = datePart.split('-');
+
+    if (!year || !month || !day) {
+        return {
+            fecha: '-',
+            hora: '-'
+        };
+    }
+
+    return {
+        fecha: `${day}/${month}/${year}`,
+        hora: timePart.slice(0, 5) || '-'
+    };
+}
+
+function mapCuentaCorrienteItemsToFacturacion(cuentas) {
+    return ensureArray(cuentas).flatMap((cuenta) => {
+        const dateParts = formatSqlDateParts(cuenta.fecha_creacion);
+        return ensureArray(cuenta.items).map((item) => ({
+            facturacion_id: `cc-${cuenta.id}-${item.id}`,
+            id: item.id,
+            fecha: dateParts.fecha,
+            hora: dateParts.hora,
+            producto: item.producto,
+            cliente: cuenta.cliente,
+            codigo: item.codigo || '',
+            unidad_medida: item.unidad_medida || 'kg',
+            cantidad: Number(item.cantidad || 0),
+            monto: Number(item.subtotal || 0),
+            producto_id: Number(item.producto_id || 0),
+            precio_unitario: Number(item.precio_unitario || 0),
+            facturacion_origen: 'cuenta_corriente',
+            cuenta_corriente_id: Number(cuenta.id)
+        }));
+    });
+}
+
+function getFacturacionSortTimestamp(item) {
+    const fecha = String(item && item.fecha ? item.fecha : '');
+    const hora = String(item && item.hora ? item.hora : '00:00');
+    const [day, month, year] = fecha.split('/');
+
+    if (!day || !month || !year) {
+        return 0;
+    }
+
+    const isoText = `${year}-${month}-${day}T${hora || '00:00'}:00`;
+    const timestamp = new Date(isoText).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function renderStockList() {
@@ -1874,7 +1962,7 @@ function drawInvoicePdf(doc, factura, assets = {}) {
     doc.text('Comprobante interno - Manicera Oeste', pageWidth / 2, y, { align: 'center' });
 
     y += 6;
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     const disclaimerLines = splitPdfTextLines(
         doc,
         'CONTROLE LA MERCADERÍA, UNA VEZ RETIRADA DEL DEPÓSITO O ENTREGADA NO SE ACEPTAN RECLAMOS NI SE REALIZAN CAMBIOS.',
@@ -1898,7 +1986,7 @@ async function generarFactura() {
 
     const button = document.getElementById('btn-generar-factura');
     const total = items.reduce((sum, item) => sum + Number(item.monto || 0), 0);
-    const itemsIds = items.map((item) => Number(item.id));
+    const itemsIds = items.map((item) => getFacturacionItemId(item)).filter(Boolean);
 
     if (button) {
         button.disabled = true;
@@ -2173,7 +2261,7 @@ function showSection(id, btn) {
     btn.classList.add('active');
 
     if (id === 'inicio') cargarInicio();
-    if (id === 'ingresos' || id === 'egresos' || id === 'cuenta-corriente') cargarProductosEnSelects();
+    if (id === 'registrar' || id === 'cuenta-corriente') cargarProductosEnSelects();
     if (id === 'sueldos') cargarSueldos();
     if (id === 'cuenta-corriente') cargarCuentasCorrientes();
     if (id === 'balance') cargarBalance();
@@ -2896,8 +2984,15 @@ async function cargarBalance() {
 async function cargarFacturacion() {
     try {
         const movimientos = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroFacturacionActual}&tipo=venta`));
-        ventasFacturacion = movimientos.filter((item) => {
+        const ventasCaja = movimientos.filter((item) => {
             return item.tipo === 'venta' && Number(item.producto_id) > 0 && Number(item.monto || 0) > 0;
+        });
+        const cuentasData = await fetchJson(API.accounts);
+        const cuentasPayload = Array.isArray(cuentasData) ? { items: cuentasData } : (cuentasData || {});
+        const ventasCuentaCorriente = mapCuentaCorrienteItemsToFacturacion(cuentasPayload.items);
+
+        ventasFacturacion = [...ventasCaja, ...ventasCuentaCorriente].sort((a, b) => {
+            return getFacturacionSortTimestamp(b) - getFacturacionSortTimestamp(a);
         });
         facturacionSeleccionada.clear();
         resetVisibleCount('facturacion');
