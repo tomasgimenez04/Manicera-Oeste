@@ -1039,6 +1039,236 @@ textarea:focus {
   text-align: right;
 }
 
+.account-form-subheading {
+  margin-top: 10px;
+}
+
+.account-add-item-btn {
+  margin-bottom: 14px;
+}
+
+.account-form-items-shell {
+  margin-top: 6px;
+}
+
+.account-form-items-table th:last-child,
+.account-form-items-table td:last-child,
+.account-table th:last-child,
+.account-table td:last-child {
+  text-align: left;
+}
+
+.account-form-items-table th:nth-child(4),
+.account-form-items-table td:nth-child(4),
+.account-table th:nth-child(4),
+.account-table td:nth-child(4),
+.account-table th:nth-child(5),
+.account-table td:nth-child(5),
+.account-table th:nth-child(6),
+.account-table td:nth-child(6) {
+  text-align: right;
+}
+
+.account-form-total,
+.account-history-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.account-form-total span,
+.account-history-total span {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.account-form-total strong,
+.account-history-total strong {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.account-summary-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.account-summary-item {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.account-summary-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.account-summary-value {
+  display: block;
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.account-summary-value--danger {
+  color: var(--red-dark);
+}
+
+.account-summary-value--warning {
+  color: #E65100;
+}
+
+.account-summary-value--success {
+  color: var(--green-dark);
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.account-status--pendiente {
+  background: var(--red-light);
+  color: var(--red-dark);
+}
+
+.account-status--parcial {
+  background: #FFF8E1;
+  color: #E65100;
+}
+
+.account-status--saldada {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.account-status--casi-saldada {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.account-date--overdue {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.account-pay-btn:disabled,
+.account-actions .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.account-remove-item-btn {
+  min-width: 90px;
+}
+
+.account-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 175;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.account-modal.is-hidden {
+  display: none;
+}
+
+.account-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.account-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 760px);
+}
+
+.account-modal__card {
+  padding: 26px;
+  border-radius: 22px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+}
+
+.account-modal__heading {
+  margin-bottom: 18px;
+}
+
+.account-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.account-payment-summary {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.account-payment-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.account-payment-line span {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.account-payment-line strong {
+  font-size: 18px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.account-history-table th:nth-child(2),
+.account-history-table td:nth-child(2) {
+  text-align: right;
+}
+
 .load-more-cell {
   padding: 18px 12px 8px;
   border-bottom: none !important;
@@ -1572,5 +1802,26 @@ textarea:focus {
 
   .product-modal__actions .btn {
     width: 100%;
+  }
+
+  .salary-modal__actions,
+  .account-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .salary-modal__actions .btn,
+  .account-modal__actions .btn {
+    width: 100%;
+  }
+
+  .account-payment-line,
+  .account-form-total,
+  .account-history-total {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .account-payment-line strong {
+    text-align: left;
   }
 }

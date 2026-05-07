@@ -14,7 +14,13 @@ const API = {
     movimientos: new URL('movements.php', APP_BASE).href,
     stock: new URL('stock.php', APP_BASE).href,
     invoices: new URL('invoices.php', APP_BASE).href,
-    salaries: new URL('salaries.php', APP_BASE).href
+    salaries: new URL('salaries.php', APP_BASE).href,
+    accounts: new URL('accounts.php', APP_BASE).href
+};
+
+const INVOICE_ASSET_URLS = {
+    instagram: new URL('Imagenes/Logo instagram.webp', APP_BASE).href,
+    whatsapp: new URL('Imagenes/Logo de whatsapp.webp', APP_BASE).href
 };
 
 const PAGE_SIZE = 10;
@@ -24,10 +30,16 @@ let movimientosInicio = [];
 let movimientosBalance = [];
 let ventasFacturacion = [];
 let sueldosActivos = [];
+let cuentasCorrientes = [];
 let resumenSueldos = {
     pendientes: 0,
     pagados_mes: 0,
     egresos_mes: 0
+};
+let resumenCuentasCorrientes = {
+    pendientes: 0,
+    parciales: 0,
+    cobrado_mes: 0
 };
 let stockActual = [];
 let filtroActual = 'dia';
@@ -37,11 +49,17 @@ let facturacionSeleccionada = new Set();
 let historialSueldoAbierto = null;
 let sueldoEnEdicionId = null;
 let sueldosPagando = new Set();
+let cuentaCorrienteItemsForm = [];
+let cuentaCorrientePagoId = null;
+let cuentaCorrienteHistorialId = null;
+let cuentasPagando = new Set();
+const invoiceImageCache = new Map();
 let visibleCounts = {
     inicio: PAGE_SIZE,
     balance: PAGE_SIZE,
     facturacion: PAGE_SIZE,
     sueldos: PAGE_SIZE,
+    cuentasCorrientes: PAGE_SIZE,
     stock: PAGE_SIZE,
     productos: PAGE_SIZE
 };
@@ -185,6 +203,10 @@ function getMovimientoDisplayName(item) {
 }
 
 function getMovimientoCantidadText(item) {
+    if (!item || Number(item.producto_id) <= 0) {
+        return '-';
+    }
+
     const cantidad = Number(item && item.cantidad != null ? item.cantidad : 0);
 
     if (!Number.isFinite(cantidad) || cantidad === 0) {
@@ -263,6 +285,10 @@ function getProductoById(productoId) {
 
 function getSueldoById(sueldoId) {
     return sueldosActivos.find((item) => Number(item.id) === Number(sueldoId)) || null;
+}
+
+function getCuentaCorrienteById(cuentaId) {
+    return cuentasCorrientes.find((item) => Number(item.id) === Number(cuentaId)) || null;
 }
 
 function getPrecioUnitario(source) {
@@ -350,8 +376,74 @@ function replaceChildren(element, children) {
 }
 
 function updateModalBodyLock() {
-    const hasOpenModal = document.querySelector('.product-modal:not(.is-hidden), .salary-modal:not(.is-hidden)') !== null;
+    const hasOpenModal = document.querySelector('.product-modal:not(.is-hidden), .salary-modal:not(.is-hidden), .account-modal:not(.is-hidden)') !== null;
     document.body.classList.toggle('modal-open', hasOpenModal);
+}
+
+function getCuentaCorrienteEstadoVisual(cuenta) {
+    const total = Number(cuenta && cuenta.monto_total) || 0;
+    const saldo = Number(cuenta && cuenta.saldo_restante) || 0;
+    const estado = cuenta && cuenta.estado ? cuenta.estado : 'pendiente';
+
+    if (estado === 'parcial' && total > 0 && saldo > 0 && saldo < total * 0.2) {
+        return 'casi-saldada';
+    }
+
+    return estado;
+}
+
+function getCuentaCorrienteEstadoLabel(cuenta) {
+    const visualState = getCuentaCorrienteEstadoVisual(cuenta);
+
+    if (visualState === 'casi-saldada') {
+        return 'Casi saldada';
+    }
+
+    if (visualState === 'saldada') {
+        return 'Saldada';
+    }
+
+    if (visualState === 'parcial') {
+        return 'Parcial';
+    }
+
+    return 'Pendiente';
+}
+
+function isCuentaCorrienteVencida(cuenta) {
+    if (!cuenta || !cuenta.fecha_vencimiento || cuenta.estado === 'saldada') {
+        return false;
+    }
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dueDate = new Date(`${cuenta.fecha_vencimiento}T00:00:00`);
+
+    if (Number.isNaN(dueDate.getTime())) {
+        return false;
+    }
+
+    return dueDate < todayStart;
+}
+
+function calcCuentaCorrienteItemSubtotal(cantidad, precioUnitario) {
+    return Number((Number(cantidad || 0) * Number(precioUnitario || 0)).toFixed(2));
+}
+
+function getCuentaCorrienteFormPayloadItems() {
+    return cuentaCorrienteItemsForm.map((item) => ({
+        producto_id: Number(item.producto_id),
+        cantidad: Number(item.cantidad),
+        precio_unitario: Number(item.precio_unitario)
+    }));
+}
+
+function isCuentaCorrienteMovimiento(item) {
+    return item && normalizarTexto(item.observacion).startsWith('cuenta corriente:');
+}
+
+function isCuentaCorrientePagoMovimiento(item) {
+    return item && normalizarTexto(item.observacion).startsWith('pago cuenta corriente:');
 }
 
 function resetVisibleCount(key) {
@@ -914,6 +1006,69 @@ function createSueldoRow(item) {
     return row;
 }
 
+function createCuentaCorrienteRow(cuenta) {
+    const row = cloneTemplate('tpl-cuenta-corriente-row');
+    const cliente = row.querySelector('[data-field="cliente"]');
+    const creacion = row.querySelector('[data-field="creacion"]');
+    const vencimiento = row.querySelector('[data-field="vencimiento"]');
+    const total = row.querySelector('[data-field="total"]');
+    const pagado = row.querySelector('[data-field="pagado"]');
+    const saldo = row.querySelector('[data-field="saldo"]');
+    const estado = row.querySelector('[data-field="estado"]');
+    const acciones = row.querySelector('[data-field="acciones"]');
+    const actionsWrap = document.createElement('div');
+    const statusBadge = document.createElement('span');
+    const payButton = document.createElement('button');
+    const historyButton = document.createElement('button');
+    const archiveButton = document.createElement('button');
+    const visualState = getCuentaCorrienteEstadoVisual(cuenta);
+    const isPaid = cuenta.estado === 'saldada';
+    const isProcessingPay = cuentasPagando.has(Number(cuenta.id));
+
+    cliente.textContent = cuenta.cliente;
+    creacion.textContent = cuenta.fecha_creacion_formateada || cuenta.fecha_creacion || '-';
+    vencimiento.textContent = cuenta.fecha_vencimiento_formateada || '-';
+    vencimiento.classList.toggle('account-date--overdue', isCuentaCorrienteVencida(cuenta));
+    total.textContent = fmtCurrencyAmount(cuenta.monto_total);
+    pagado.textContent = fmtCurrencyAmount(cuenta.monto_pagado);
+    saldo.textContent = fmtCurrencyAmount(cuenta.saldo_restante);
+    saldo.className = 'amount';
+
+    statusBadge.className = `account-status account-status--${visualState}`;
+    statusBadge.textContent = getCuentaCorrienteEstadoLabel(cuenta);
+    replaceChildren(estado, [statusBadge]);
+
+    actionsWrap.className = 'account-actions';
+
+    payButton.type = 'button';
+    payButton.className = 'btn btn-primary btn-sm account-pay-btn';
+    payButton.textContent = isProcessingPay ? 'Guardando...' : 'Registrar pago';
+    payButton.disabled = isPaid || isProcessingPay;
+    payButton.addEventListener('click', () => {
+        openAccountPaymentModal(cuenta.id);
+    });
+
+    historyButton.type = 'button';
+    historyButton.className = 'btn btn-secondary btn-sm';
+    historyButton.textContent = 'Ver pagos';
+    historyButton.addEventListener('click', async () => {
+        await verHistorialPagosCuentaCorriente(cuenta.id, cuenta.cliente);
+    });
+
+    archiveButton.type = 'button';
+    archiveButton.className = 'btn btn-primary btn-danger btn-sm';
+    archiveButton.textContent = 'Archivar';
+    archiveButton.disabled = Number(cuenta.pagos_realizados || 0) > 0;
+    archiveButton.addEventListener('click', async () => {
+        await archivarCuentaCorriente(cuenta.id, cuenta.cliente);
+    });
+
+    actionsWrap.append(payButton, historyButton, archiveButton);
+    replaceChildren(acciones, [actionsWrap]);
+
+    return row;
+}
+
 function createStockRow(item) {
     const row = cloneTemplate('tpl-stock-row');
     const nombre = row.querySelector('[data-field="nombre"]');
@@ -1092,6 +1247,107 @@ function renderSueldosTable() {
     });
 }
 
+function renderCuentaCorrienteSummary() {
+    const pendientes = document.getElementById('cc-resumen-pendientes');
+    const parciales = document.getElementById('cc-resumen-parciales');
+    const cobrado = document.getElementById('cc-resumen-cobrado');
+
+    if (!pendientes || !parciales || !cobrado) {
+        return;
+    }
+
+    pendientes.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.pendientes || 0);
+    parciales.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.parciales || 0);
+    cobrado.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.cobrado_mes || 0);
+}
+
+function renderCuentasCorrientesTable() {
+    const tbody = document.getElementById('tabla-cuentas-corrientes');
+    if (!tbody) {
+        return;
+    }
+
+    renderPaginatedTable({
+        tbody,
+        items: cuentasCorrientes,
+        key: 'cuentasCorrientes',
+        colspan: 8,
+        emptyMessage: 'No hay cuentas corrientes activas registradas.',
+        createRow: createCuentaCorrienteRow,
+        rerender: renderCuentasCorrientesTable
+    });
+}
+
+function renderCuentaCorrienteFormItems() {
+    const tbody = document.getElementById('cc-form-items-body');
+    if (!tbody) {
+        return;
+    }
+
+    if (!cuentaCorrienteItemsForm.length) {
+        replaceChildren(tbody, [createEmptyTableRow(5, 'Todavía no agregaste productos.')]);
+        actualizarCuentaCorrienteFormState();
+        return;
+    }
+
+    const rows = cuentaCorrienteItemsForm.map((item, index) => {
+        const row = document.createElement('tr');
+        const producto = document.createElement('td');
+        const cantidad = document.createElement('td');
+        const precio = document.createElement('td');
+        const subtotal = document.createElement('td');
+        const quitar = document.createElement('td');
+        const removeButton = document.createElement('button');
+
+        producto.textContent = formatearNombreProducto(item.producto, item.codigo);
+        cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
+        precio.textContent = fmtCurrencyAmount(item.precio_unitario);
+        subtotal.textContent = fmtCurrencyAmount(item.subtotal);
+        subtotal.className = 'amount';
+
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-primary btn-danger btn-sm account-remove-item-btn';
+        removeButton.textContent = 'Quitar';
+        removeButton.addEventListener('click', () => {
+            quitarItemDelFormulario(index);
+        });
+
+        quitar.appendChild(removeButton);
+        row.append(producto, cantidad, precio, subtotal, quitar);
+        return row;
+    });
+
+    replaceChildren(tbody, rows);
+    actualizarCuentaCorrienteFormState();
+}
+
+function updateCuentaCorrienteFormPrice() {
+    const select = document.getElementById('cc-producto');
+    const priceInput = document.getElementById('cc-precio');
+    if (!select || !priceInput) {
+        return;
+    }
+
+    const producto = getProductoById(parseInt(select.value, 10));
+    priceInput.value = producto ? getPrecioUnitario(producto).toFixed(2) : '';
+}
+
+function actualizarCuentaCorrienteFormState() {
+    const totalEl = document.getElementById('cc-form-total');
+    const clientInput = document.getElementById('cc-cliente');
+    const createBtn = document.getElementById('btn-crear-cuenta-corriente');
+    const total = cuentaCorrienteItemsForm.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+
+    if (totalEl) {
+        totalEl.textContent = fmtCurrencyAmount(total);
+    }
+
+    if (createBtn) {
+        const hasClient = clientInput && clientInput.value.trim() !== '';
+        createBtn.disabled = !(hasClient && cuentaCorrienteItemsForm.length > 0);
+    }
+}
+
 function openSalaryHistoryModal(title = 'Historial de pagos') {
     const modal = document.getElementById('salary-history-modal');
     const subtitle = document.getElementById('salary-history-subtitle');
@@ -1178,6 +1434,106 @@ function renderSalaryHistoryRows(items) {
     });
 
     replaceChildren(tbody, rows);
+}
+
+function openAccountPaymentModal(id) {
+    const modal = document.getElementById('account-payment-modal');
+    const cuenta = getCuentaCorrienteById(id);
+
+    if (!modal || !cuenta) {
+        showToast('No se encontró la cuenta corriente seleccionada.', 'error');
+        return;
+    }
+
+    cuentaCorrientePagoId = Number(id);
+    document.getElementById('account-payment-client').textContent = cuenta.cliente || '-';
+    document.getElementById('account-payment-balance').textContent = fmtCurrencyAmount(cuenta.saldo_restante || 0);
+    document.getElementById('account-payment-subtitle').textContent = `Registra un cobro para la cuenta corriente de ${cuenta.cliente}.`;
+    document.getElementById('account-payment-amount').value = '';
+    document.getElementById('account-payment-amount').max = String(Number(cuenta.saldo_restante || 0).toFixed(2));
+    document.getElementById('account-payment-note').value = '';
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    updateModalBodyLock();
+}
+
+function closeAccountPaymentModal() {
+    const modal = document.getElementById('account-payment-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    cuentaCorrientePagoId = null;
+    updateModalBodyLock();
+}
+
+function openAccountHistoryModal(cliente = 'la cuenta corriente seleccionada') {
+    const modal = document.getElementById('account-history-modal');
+    const subtitle = document.getElementById('account-history-subtitle');
+
+    if (!modal) {
+        return;
+    }
+
+    if (subtitle) {
+        subtitle.textContent = `Historial de cobros de ${cliente}.`;
+    }
+
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    updateModalBodyLock();
+}
+
+function closeAccountHistoryModal() {
+    const modal = document.getElementById('account-history-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    cuentaCorrienteHistorialId = null;
+    updateModalBodyLock();
+}
+
+function renderAccountHistoryRows(items) {
+    const tbody = document.getElementById('account-history-body');
+    const totalEl = document.getElementById('account-history-total-value');
+    if (!tbody) {
+        return;
+    }
+
+    if (!items.length) {
+        replaceChildren(tbody, [createEmptyTableRow(3, 'Sin pagos registrados.')]);
+        if (totalEl) {
+            totalEl.textContent = fmtCurrencyAmount(0);
+        }
+        return;
+    }
+
+    const total = items.reduce((sum, item) => sum + Number(item.monto || 0), 0);
+    const rows = items.map((item) => {
+        const row = document.createElement('tr');
+        const fecha = document.createElement('td');
+        const monto = document.createElement('td');
+        const observacion = document.createElement('td');
+
+        fecha.textContent = item.fecha_formateada || item.fecha || '-';
+        monto.textContent = fmtCurrencyAmount(item.monto);
+        monto.className = 'amount';
+        observacion.textContent = item.observacion || '-';
+        row.append(fecha, monto, observacion);
+        return row;
+    });
+
+    replaceChildren(tbody, rows);
+
+    if (totalEl) {
+        totalEl.textContent = fmtCurrencyAmount(total);
+    }
 }
 
 function renderStockList() {
@@ -1327,7 +1683,55 @@ function splitPdfTextLines(doc, text, maxWidth) {
     return Array.isArray(lines) && lines.length ? lines : ['-'];
 }
 
-function drawInvoicePdf(doc, factura) {
+async function loadInvoiceImageData(url) {
+    if (invoiceImageCache.has(url)) {
+        return invoiceImageCache.get(url);
+    }
+
+    const promise = new Promise((resolve) => {
+        const image = new Image();
+
+        image.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth || image.width;
+                canvas.height = image.naturalHeight || image.height;
+                const context = canvas.getContext('2d');
+
+                if (!context) {
+                    resolve(null);
+                    return;
+                }
+
+                context.drawImage(image, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            } catch (error) {
+                console.error(error);
+                resolve(null);
+            }
+        };
+
+        image.onerror = () => resolve(null);
+        image.src = url;
+    });
+
+    invoiceImageCache.set(url, promise);
+    return promise;
+}
+
+async function loadInvoiceContactAssets() {
+    const [instagramLogo, whatsappLogo] = await Promise.all([
+        loadInvoiceImageData(INVOICE_ASSET_URLS.instagram),
+        loadInvoiceImageData(INVOICE_ASSET_URLS.whatsapp)
+    ]);
+
+    return {
+        instagramLogo,
+        whatsappLogo
+    };
+}
+
+function drawInvoicePdf(doc, factura, assets = {}) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const marginX = 14;
@@ -1338,6 +1742,11 @@ function drawInvoicePdf(doc, factura) {
     const unitX = 154;
     const totalX = contentRight;
     const productWidth = unitX - productX - 14;
+    const infoLeftX = marginX;
+    const infoRightX = 133;
+    const iconSize = 5;
+    const contactTextX = infoRightX + iconSize + 3;
+    const footerReserve = 54;
     let y = 20;
 
     const drawSeparator = () => {
@@ -1369,13 +1778,25 @@ function drawInvoicePdf(doc, factura) {
 
         y += 6;
         doc.setFontSize(9);
-        doc.text('Laureana Ferrari 403', centerX, y, { align: 'center' });
+        doc.text('Laureana Ferrari 403', infoLeftX, y);
+
+        if (assets.instagramLogo) {
+            doc.addImage(assets.instagramLogo, 'PNG', infoRightX, y - 3.8, iconSize, iconSize);
+        }
+
+        doc.text('maniceraoeste_manicor', contactTextX, y);
 
         y += 5;
-        doc.text('Palomar', centerX, y, { align: 'center' });
+        doc.text('Palomar', infoLeftX, y);
+
+        if (assets.whatsappLogo) {
+            doc.addImage(assets.whatsappLogo, 'PNG', infoRightX, y - 3.8, iconSize, iconSize);
+        }
+
+        doc.text('1121564919', contactTextX, y);
 
         y += 5;
-        doc.text('Buenos Aires, Argentina', centerX, y, { align: 'center' });
+        doc.text('Buenos Aires, Argentina', infoLeftX, y);
 
         y += 7;
         drawSeparator();
@@ -1426,7 +1847,7 @@ function drawInvoicePdf(doc, factura) {
         y += productLines.length > 1 ? rowHeight + 2 : 7;
     });
 
-    if (y > pageHeight - 36) {
+    if (y > pageHeight - footerReserve) {
         beginNextPage();
     }
 
@@ -1451,6 +1872,15 @@ function drawInvoicePdf(doc, factura) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text('Comprobante interno - Manicera Oeste', pageWidth / 2, y, { align: 'center' });
+
+    y += 6;
+    doc.setFontSize(10);
+    const disclaimerLines = splitPdfTextLines(
+        doc,
+        'CONTROLE LA MERCADERÍA, UNA VEZ RETIRADA DEL DEPÓSITO O ENTREGADA NO SE ACEPTAN RECLAMOS NI SE REALIZAN CAMBIOS.',
+        pageWidth - (marginX * 2)
+    );
+    doc.text(disclaimerLines, pageWidth / 2, y, { align: 'center' });
 }
 
 async function generarFactura() {
@@ -1501,8 +1931,9 @@ async function generarFactura() {
             total,
             items
         };
+        const invoiceAssets = await loadInvoiceContactAssets();
 
-        drawInvoicePdf(doc, factura);
+        drawInvoicePdf(doc, factura, invoiceAssets);
         doc.save(getInvoiceFileName(factura.numeroFormateado, factura.fecha));
 
         facturacionSeleccionada.clear();
@@ -1523,7 +1954,7 @@ async function generarFactura() {
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
-    ['v-producto', 'c-producto'].forEach((id) => {
+    ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
         const select = document.getElementById(id);
         if (select) {
             initProductPicker(select);
@@ -1575,15 +2006,31 @@ document.addEventListener('DOMContentLoaded', () => {
         salaryRegisterBtn.addEventListener('click', registrarSueldo);
     }
 
-    ['v-producto', 'c-producto'].forEach((id) => {
+    const ccAddItemBtn = document.getElementById('btn-cc-agregar-item');
+    if (ccAddItemBtn) {
+        ccAddItemBtn.addEventListener('click', agregarItemAlFormulario);
+    }
+
+    const ccCreateBtn = document.getElementById('btn-crear-cuenta-corriente');
+    if (ccCreateBtn) {
+        ccCreateBtn.addEventListener('click', crearCuentaCorriente);
+    }
+
+    ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
         const select = document.getElementById(id);
         if (!select) {
             return;
         }
 
         select.addEventListener('change', () => {
-            const prefix = id.startsWith('v-') ? 'v' : 'c';
             syncProductPicker(select);
+            if (id === 'cc-producto') {
+                actualizarCampoCantidad('cc');
+                updateCuentaCorrienteFormPrice();
+                return;
+            }
+
+            const prefix = id.startsWith('v-') ? 'v' : 'c';
             actualizarCampoCantidad(prefix);
 
             if (prefix === 'v') {
@@ -1595,6 +2042,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const ventaCantidadInput = document.getElementById('v-cantidad');
     if (ventaCantidadInput) {
         ventaCantidadInput.addEventListener('input', calcularMontoVenta);
+    }
+
+    const ccClienteInput = document.getElementById('cc-cliente');
+    if (ccClienteInput) {
+        ccClienteInput.addEventListener('input', actualizarCuentaCorrienteFormState);
     }
 
     ['buscar-producto'].forEach((id) => {
@@ -1654,6 +2106,29 @@ document.addEventListener('DOMContentLoaded', () => {
         salaryEditSaveBtn.addEventListener('click', guardarCambiosSueldo);
     }
 
+    document.querySelectorAll('[data-account-payment-close]').forEach((element) => {
+        element.addEventListener('click', closeAccountPaymentModal);
+    });
+
+    const accountPaymentCloseBtn = document.getElementById('account-payment-close-btn');
+    if (accountPaymentCloseBtn) {
+        accountPaymentCloseBtn.addEventListener('click', closeAccountPaymentModal);
+    }
+
+    const accountPaymentSaveBtn = document.getElementById('account-payment-save-btn');
+    if (accountPaymentSaveBtn) {
+        accountPaymentSaveBtn.addEventListener('click', registrarPagoCuentaCorriente);
+    }
+
+    document.querySelectorAll('[data-account-history-close]').forEach((element) => {
+        element.addEventListener('click', closeAccountHistoryModal);
+    });
+
+    const accountHistoryCloseBtn = document.getElementById('account-history-close-btn');
+    if (accountHistoryCloseBtn) {
+        accountHistoryCloseBtn.addEventListener('click', closeAccountHistoryModal);
+    }
+
     const salaryStartInput = document.getElementById('sueldo-fecha-inicio');
     if (salaryStartInput && !salaryStartInput.value) {
         salaryStartInput.value = new Date().toISOString().slice(0, 10);
@@ -1665,6 +2140,8 @@ document.addEventListener('DOMContentLoaded', () => {
             closeProductModal();
             closeSalaryHistoryModal();
             closeSalaryEditModal();
+            closeAccountPaymentModal();
+            closeAccountHistoryModal();
         }
     });
 
@@ -1678,6 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cargarInicio();
     cargarProductosEnSelects();
+    renderCuentaCorrienteFormItems();
 });
 
 // Carga de datos y acciones principales
@@ -1695,8 +2173,9 @@ function showSection(id, btn) {
     btn.classList.add('active');
 
     if (id === 'inicio') cargarInicio();
-    if (id === 'ingresos' || id === 'egresos') cargarProductosEnSelects();
+    if (id === 'ingresos' || id === 'egresos' || id === 'cuenta-corriente') cargarProductosEnSelects();
     if (id === 'sueldos') cargarSueldos();
+    if (id === 'cuenta-corriente') cargarCuentasCorrientes();
     if (id === 'balance') cargarBalance();
     if (id === 'facturacion') cargarFacturacion();
     if (id === 'stock') cargarStock();
@@ -1707,7 +2186,7 @@ async function cargarProductosEnSelects() {
     try {
         productos = ensureArray(await fetchJson(API.productos));
 
-        ['v-producto', 'c-producto'].forEach((id) => {
+        ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
             const select = document.getElementById(id);
             if (!select) return;
 
@@ -1726,7 +2205,9 @@ async function cargarProductosEnSelects() {
 
         actualizarCampoCantidad('v');
         actualizarCampoCantidad('c');
+        actualizarCampoCantidad('cc');
         calcularMontoVenta();
+        updateCuentaCorrienteFormPrice();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar productos.'), 'error');
@@ -1853,6 +2334,283 @@ async function cargarSueldos() {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar sueldos.'), 'error');
     }
+}
+
+function clearCuentaCorrienteForm() {
+    const clientInput = document.getElementById('cc-cliente');
+    const dueDateInput = document.getElementById('cc-fecha-vencimiento');
+    const quantityInput = document.getElementById('cc-cantidad');
+    const priceInput = document.getElementById('cc-precio');
+
+    cuentaCorrienteItemsForm = [];
+
+    if (clientInput) {
+        clientInput.value = '';
+    }
+
+    if (dueDateInput) {
+        dueDateInput.value = '';
+    }
+
+    if (quantityInput) {
+        quantityInput.value = '';
+    }
+
+    if (priceInput) {
+        priceInput.value = '';
+    }
+
+    renderCuentaCorrienteFormItems();
+    updateCuentaCorrienteFormPrice();
+}
+
+function agregarItemAlFormulario() {
+    const select = document.getElementById('cc-producto');
+    const cantidadInput = document.getElementById('cc-cantidad');
+    const precioInput = document.getElementById('cc-precio');
+    const productoId = select ? parseInt(select.value, 10) : 0;
+    const cantidad = cantidadInput ? parseFloat(cantidadInput.value) || 0 : 0;
+    const precioUnitario = precioInput ? parseFloat(precioInput.value) || 0 : 0;
+    const producto = getProductoById(productoId);
+
+    if (!productoId || !producto) {
+        showToast('Selecciona un producto.', 'error');
+        return;
+    }
+
+    if (cantidad <= 0) {
+        showToast('Escribí una cantidad mayor a 0.', 'error');
+        return;
+    }
+
+    if (precioUnitario <= 0) {
+        showToast('Escribí un precio unitario mayor a 0.', 'error');
+        return;
+    }
+
+    if (usaCantidadEntera(producto) && !Number.isInteger(cantidad)) {
+        showToast(`Para productos por ${getUnidadMedida(producto)}, la cantidad debe ser entera.`, 'error');
+        return;
+    }
+
+    cuentaCorrienteItemsForm.push({
+        producto_id: producto.id,
+        producto: producto.nombre,
+        codigo: producto.codigo || '',
+        unidad_medida: getUnidadMedida(producto),
+        cantidad,
+        precio_unitario: precioUnitario,
+        subtotal: calcCuentaCorrienteItemSubtotal(cantidad, precioUnitario)
+    });
+
+    if (cantidadInput) {
+        cantidadInput.value = '';
+    }
+
+    renderCuentaCorrienteFormItems();
+    updateCuentaCorrienteFormPrice();
+}
+
+function quitarItemDelFormulario(index) {
+    cuentaCorrienteItemsForm.splice(index, 1);
+    renderCuentaCorrienteFormItems();
+}
+
+async function cargarCuentasCorrientes() {
+    try {
+        const data = await fetchJson(API.accounts);
+        const payload = Array.isArray(data) ? { items: data, resumen: {} } : (data || {});
+
+        cuentasCorrientes = ensureArray(payload.items);
+        resumenCuentasCorrientes = {
+            pendientes: Number(payload.resumen && payload.resumen.pendientes) || 0,
+            parciales: Number(payload.resumen && payload.resumen.parciales) || 0,
+            cobrado_mes: Number(payload.resumen && payload.resumen.cobrado_mes) || 0
+        };
+
+        resetVisibleCount('cuentasCorrientes');
+        renderCuentaCorrienteSummary();
+        renderCuentasCorrientesTable();
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al cargar cuentas corrientes.'), 'error');
+    }
+}
+
+async function crearCuentaCorriente() {
+    const clienteInput = document.getElementById('cc-cliente');
+    const dueDateInput = document.getElementById('cc-fecha-vencimiento');
+    const cliente = clienteInput ? clienteInput.value.trim() : '';
+    const fecha_vencimiento = dueDateInput ? dueDateInput.value.trim() : '';
+
+    if (!cliente) {
+        showToast('Escribí el nombre del cliente.', 'error');
+        return;
+    }
+
+    if (!cuentaCorrienteItemsForm.length) {
+        showToast('Agrega al menos un producto a la cuenta corriente.', 'error');
+        return;
+    }
+
+    try {
+        const data = await fetchJson(`${API.accounts}?accion=crear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cliente,
+                fecha_vencimiento: fecha_vencimiento || null,
+                items: getCuentaCorrienteFormPayloadItems()
+            })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        clearCuentaCorrienteForm();
+        await cargarCuentasCorrientes();
+
+        if (typeof cargarStock === 'function') {
+            await cargarStock();
+        }
+
+        if (typeof cargarInicio === 'function') {
+            await cargarInicio();
+        }
+
+        if (typeof cargarBalance === 'function') {
+            await cargarBalance();
+        }
+
+        showToast('Cuenta corriente creada.', 'venta');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al crear la cuenta corriente.'), 'error');
+    }
+}
+
+async function registrarPagoCuentaCorriente() {
+    if (!cuentaCorrientePagoId) {
+        showToast('No hay una cuenta corriente seleccionada.', 'error');
+        return;
+    }
+
+    const cuentaId = Number(cuentaCorrientePagoId);
+    const cuenta = getCuentaCorrienteById(cuentaCorrientePagoId);
+    const amountInput = document.getElementById('account-payment-amount');
+    const noteInput = document.getElementById('account-payment-note');
+    const monto = amountInput ? parseFloat(amountInput.value) || 0 : 0;
+    const observacion = noteInput ? noteInput.value.trim() : '';
+    const saldoRestante = Number(cuenta && cuenta.saldo_restante) || 0;
+
+    if (monto <= 0) {
+        showToast('Escribí un monto mayor a 0.', 'error');
+        return;
+    }
+
+    if (monto > saldoRestante) {
+        showToast('El monto no puede superar el saldo restante.', 'error');
+        return;
+    }
+
+    cuentasPagando.add(cuentaId);
+    renderCuentasCorrientesTable();
+
+    try {
+        const data = await fetchJson(`${API.accounts}?accion=pagar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cuenta_id: cuentaId,
+                monto,
+                observacion
+            })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        closeAccountPaymentModal();
+        await cargarCuentasCorrientes();
+
+        if (typeof cargarInicio === 'function') {
+            await cargarInicio();
+        }
+
+        if (typeof cargarBalance === 'function') {
+            await cargarBalance();
+        }
+
+        showToast('Pago registrado en cuenta corriente.', 'venta');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al registrar el pago.'), 'error');
+    } finally {
+        cuentasPagando.delete(cuentaId);
+        renderCuentasCorrientesTable();
+    }
+}
+
+async function verHistorialPagosCuentaCorriente(id, cliente = 'esta cuenta corriente') {
+    try {
+        cuentaCorrienteHistorialId = Number(id);
+        const data = await fetchJson(`${API.accounts}?id=${Number(id)}`);
+        const items = ensureArray(data);
+        renderAccountHistoryRows(items);
+        openAccountHistoryModal(cliente);
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al cargar el historial de pagos.'), 'error');
+    }
+}
+
+async function archivarCuentaCorriente(id, cliente) {
+    if (!confirm(`Archivar la cuenta corriente de "${cliente}"?`)) {
+        return;
+    }
+
+    try {
+        const data = await fetchJson(`${API.accounts}?accion=archivar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: Number(id) })
+        });
+
+        if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        await cargarCuentasCorrientes();
+        showToast('Cuenta corriente archivada.', 'compra');
+    } catch (error) {
+        console.error(error);
+        showToast(getErrorMessage(error, 'Error al archivar la cuenta corriente.'), 'error');
+    }
+}
+
+function cargarProductosEnSelect() {
+    return cargarProductosEnSelects();
+}
+
+function abrirModalPago(id) {
+    openAccountPaymentModal(id);
+}
+
+function registrarPago() {
+    return registrarPagoCuentaCorriente();
+}
+
+function verHistorialPagos(id, cliente) {
+    return verHistorialPagosCuentaCorriente(id, cliente);
+}
+
+function archivarCuenta(id, cliente) {
+    return archivarCuentaCorriente(id, cliente);
 }
 
 async function registrarSueldo() {
@@ -2138,7 +2896,9 @@ async function cargarBalance() {
 async function cargarFacturacion() {
     try {
         const movimientos = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroFacturacionActual}&tipo=venta`));
-        ventasFacturacion = movimientos.filter((item) => item.tipo === 'venta');
+        ventasFacturacion = movimientos.filter((item) => {
+            return item.tipo === 'venta' && Number(item.producto_id) > 0 && Number(item.monto || 0) > 0;
+        });
         facturacionSeleccionada.clear();
         resetVisibleCount('facturacion');
         renderFacturacionTable();
