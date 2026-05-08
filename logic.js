@@ -446,12 +446,52 @@ function calcCuentaCorrienteItemSubtotal(cantidad, precioUnitario) {
     return Number((Number(cantidad || 0) * Number(precioUnitario || 0)).toFixed(2));
 }
 
+function createCuentaCorrienteDraftItem() {
+    return {
+        producto_id: '',
+        producto: '',
+        codigo: '',
+        unidad_medida: 'kg',
+        cantidad: '',
+        precio_unitario: '',
+        subtotal: 0
+    };
+}
+
+function ensureCuentaCorrienteDraftRows() {
+    if (!cuentaCorrienteItemsForm.length) {
+        cuentaCorrienteItemsForm = [createCuentaCorrienteDraftItem()];
+    }
+}
+
+function isCuentaCorrienteFormItemValid(item) {
+    if (!item) {
+        return false;
+    }
+
+    const productoId = Number(item.producto_id);
+    const cantidad = Number(item.cantidad);
+    const precioUnitario = Number(item.precio_unitario);
+
+    if (!productoId || !Number.isFinite(cantidad) || cantidad <= 0 || !Number.isFinite(precioUnitario) || precioUnitario <= 0) {
+        return false;
+    }
+
+    if (usaCantidadEntera(item.unidad_medida) && !Number.isInteger(cantidad)) {
+        return false;
+    }
+
+    return true;
+}
+
 function getCuentaCorrienteFormPayloadItems() {
-    return cuentaCorrienteItemsForm.map((item) => ({
-        producto_id: Number(item.producto_id),
-        cantidad: Number(item.cantidad),
-        precio_unitario: Number(item.precio_unitario)
-    }));
+    return cuentaCorrienteItemsForm
+        .filter((item) => isCuentaCorrienteFormItemValid(item))
+        .map((item) => ({
+            producto_id: Number(item.producto_id),
+            cantidad: Number(item.cantidad),
+            precio_unitario: Number(item.precio_unitario)
+        }));
 }
 
 function isCuentaCorrienteMovimiento(item) {
@@ -719,6 +759,43 @@ function closeAllProductPickers(exceptSelect = null) {
 
         closeProductPicker(select);
     });
+}
+
+function closeAllAccountActionMenus(exceptMenu = null) {
+    document.querySelectorAll('.account-actions-menu').forEach((menu) => {
+        if (exceptMenu && menu === exceptMenu) {
+            return;
+        }
+
+        menu.classList.remove('is-open');
+        const trigger = menu.querySelector('.account-actions-menu__trigger');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+    });
+}
+
+function toggleAccountActionMenu(menu) {
+    if (!menu) {
+        return;
+    }
+
+    const trigger = menu.querySelector('.account-actions-menu__trigger');
+    const isOpen = menu.classList.contains('is-open');
+
+    if (isOpen) {
+        menu.classList.remove('is-open');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+        return;
+    }
+
+    closeAllAccountActionMenus(menu);
+    menu.classList.add('is-open');
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', 'true');
+    }
 }
 
 function openProductPicker(select) {
@@ -1041,6 +1118,8 @@ function createCuentaCorrienteRow(cuenta) {
     const estado = row.querySelector('[data-field="estado"]');
     const acciones = row.querySelector('[data-field="acciones"]');
     const actionsWrap = document.createElement('div');
+    const triggerButton = document.createElement('button');
+    const menu = document.createElement('div');
     const statusBadge = document.createElement('span');
     const payButton = document.createElement('button');
     const historyButton = document.createElement('button');
@@ -1048,10 +1127,12 @@ function createCuentaCorrienteRow(cuenta) {
     const visualState = getCuentaCorrienteEstadoVisual(cuenta);
     const isPaid = cuenta.estado === 'saldada';
     const isProcessingPay = cuentasPagando.has(Number(cuenta.id));
+    const creationDate = formatSqlDateParts(cuenta.fecha_creacion).fecha;
+    const dueDate = cuenta.fecha_vencimiento ? formatSqlDateParts(cuenta.fecha_vencimiento).fecha : '-';
 
     cliente.textContent = cuenta.cliente;
-    creacion.textContent = cuenta.fecha_creacion_formateada || cuenta.fecha_creacion || '-';
-    vencimiento.textContent = cuenta.fecha_vencimiento_formateada || '-';
+    creacion.textContent = creationDate || '-';
+    vencimiento.textContent = dueDate || '-';
     vencimiento.classList.toggle('account-date--overdue', isCuentaCorrienteVencida(cuenta));
     total.textContent = fmtCurrencyAmount(cuenta.monto_total);
     pagado.textContent = fmtCurrencyAmount(cuenta.monto_pagado);
@@ -1062,32 +1143,49 @@ function createCuentaCorrienteRow(cuenta) {
     statusBadge.textContent = getCuentaCorrienteEstadoLabel(cuenta);
     replaceChildren(estado, [statusBadge]);
 
-    actionsWrap.className = 'account-actions';
+    actionsWrap.className = 'account-actions-menu';
+
+    triggerButton.type = 'button';
+    triggerButton.className = 'account-actions-menu__trigger';
+    triggerButton.textContent = 'Acciones ▾';
+    triggerButton.setAttribute('aria-haspopup', 'menu');
+    triggerButton.setAttribute('aria-expanded', 'false');
+    triggerButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleAccountActionMenu(actionsWrap);
+    });
+
+    menu.className = 'account-actions-menu__dropdown';
+    menu.setAttribute('role', 'menu');
 
     payButton.type = 'button';
-    payButton.className = 'btn btn-primary btn-sm account-pay-btn';
-    payButton.textContent = isProcessingPay ? 'Guardando...' : 'Registrar pago';
+    payButton.className = 'account-actions-menu__item account-pay-btn';
+    payButton.textContent = isProcessingPay ? '💰 Guardando...' : '💰 Registrar pago';
     payButton.disabled = isPaid || isProcessingPay;
     payButton.addEventListener('click', () => {
+        closeAllAccountActionMenus();
         openAccountPaymentModal(cuenta.id);
     });
 
     historyButton.type = 'button';
-    historyButton.className = 'btn btn-secondary btn-sm';
-    historyButton.textContent = 'Ver pagos';
+    historyButton.className = 'account-actions-menu__item';
+    historyButton.textContent = '📋 Ver pagos';
     historyButton.addEventListener('click', async () => {
+        closeAllAccountActionMenus();
         await verHistorialPagosCuentaCorriente(cuenta.id, cuenta.cliente);
     });
 
     archiveButton.type = 'button';
-    archiveButton.className = 'btn btn-primary btn-danger btn-sm';
-    archiveButton.textContent = 'Archivar';
+    archiveButton.className = 'account-actions-menu__item account-actions-menu__item--danger account-actions-menu__item--separated';
+    archiveButton.textContent = '🗄 Archivar';
     archiveButton.disabled = Number(cuenta.pagos_realizados || 0) > 0;
     archiveButton.addEventListener('click', async () => {
+        closeAllAccountActionMenus();
         await archivarCuentaCorriente(cuenta.id, cuenta.cliente);
     });
 
-    actionsWrap.append(payButton, historyButton, archiveButton);
+    menu.append(payButton, historyButton, archiveButton);
+    actionsWrap.append(triggerButton, menu);
     replaceChildren(acciones, [actionsWrap]);
 
     return row;
@@ -1308,11 +1406,7 @@ function renderCuentaCorrienteFormItems() {
         return;
     }
 
-    if (!cuentaCorrienteItemsForm.length) {
-        replaceChildren(tbody, [createEmptyTableRow(5, 'Todavía no agregaste productos.')]);
-        actualizarCuentaCorrienteFormState();
-        return;
-    }
+    ensureCuentaCorrienteDraftRows();
 
     const rows = cuentaCorrienteItemsForm.map((item, index) => {
         const row = document.createElement('tr');
@@ -1321,17 +1415,84 @@ function renderCuentaCorrienteFormItems() {
         const precio = document.createElement('td');
         const subtotal = document.createElement('td');
         const quitar = document.createElement('td');
+        const select = document.createElement('select');
+        const cantidadInput = document.createElement('input');
+        const precioInput = document.createElement('input');
         const removeButton = document.createElement('button');
 
-        producto.textContent = item.producto;
-        cantidad.textContent = fmtCantidad(item.cantidad, item.unidad_medida);
-        precio.textContent = fmtCurrencyAmount(item.precio_unitario);
+        select.className = 'account-row-select';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Selecciona un producto';
+        select.appendChild(placeholderOption);
+
+        productos.forEach((productoItem) => {
+            const option = document.createElement('option');
+            option.value = String(productoItem.id);
+            option.textContent = formatearNombreProducto(productoItem.nombre, productoItem.codigo);
+            option.selected = Number(item.producto_id) === Number(productoItem.id);
+            select.appendChild(option);
+        });
+
+        cantidadInput.type = 'number';
+        cantidadInput.className = 'account-row-input';
+        cantidadInput.min = '0';
+        cantidadInput.placeholder = 'Ej: 10';
+        cantidadInput.value = item.cantidad === '' ? '' : String(item.cantidad);
+
+        precioInput.type = 'number';
+        precioInput.className = 'account-row-input account-row-input--price';
+        precioInput.min = '0';
+        precioInput.step = '0.01';
+        precioInput.placeholder = '0';
+        precioInput.value = item.precio_unitario === '' ? '' : String(item.precio_unitario);
+
+        const syncQuantityInput = () => {
+            const usaEntero = usaCantidadEntera(item.unidad_medida);
+            cantidadInput.step = usaEntero ? '1' : '0.01';
+        };
+
+        const recalculateRow = () => {
+            item.subtotal = calcCuentaCorrienteItemSubtotal(item.cantidad, item.precio_unitario);
+            subtotal.textContent = fmtCurrencyAmount(item.subtotal);
+            actualizarCuentaCorrienteFormState();
+        };
+
+        select.addEventListener('change', () => {
+            const productoSeleccionado = getProductoById(parseInt(select.value, 10));
+
+            item.producto_id = productoSeleccionado ? Number(productoSeleccionado.id) : '';
+            item.producto = productoSeleccionado ? productoSeleccionado.nombre : '';
+            item.codigo = productoSeleccionado ? (productoSeleccionado.codigo || '') : '';
+            item.unidad_medida = getUnidadMedida(productoSeleccionado);
+            item.precio_unitario = productoSeleccionado ? getPrecioUnitario(productoSeleccionado) : '';
+
+            precioInput.value = item.precio_unitario === '' ? '' : Number(item.precio_unitario).toFixed(2);
+            syncQuantityInput();
+            recalculateRow();
+        });
+
+        cantidadInput.addEventListener('input', () => {
+            item.cantidad = cantidadInput.value === '' ? '' : Number(cantidadInput.value);
+            recalculateRow();
+        });
+
+        precioInput.addEventListener('input', () => {
+            item.precio_unitario = precioInput.value === '' ? '' : Number(precioInput.value);
+            recalculateRow();
+        });
+
+        syncQuantityInput();
+
+        producto.appendChild(select);
+        cantidad.appendChild(cantidadInput);
+        precio.appendChild(precioInput);
         subtotal.textContent = fmtCurrencyAmount(item.subtotal);
         subtotal.className = 'amount';
 
         removeButton.type = 'button';
         removeButton.className = 'btn btn-primary btn-danger btn-sm account-remove-item-btn';
-        removeButton.textContent = '×';
+        removeButton.textContent = 'Quitar';
         removeButton.setAttribute('aria-label', `Quitar ${item.producto}`);
         removeButton.title = `Quitar ${item.producto}`;
         removeButton.addEventListener('click', () => {
@@ -1343,34 +1504,48 @@ function renderCuentaCorrienteFormItems() {
         return row;
     });
 
-    replaceChildren(tbody, rows);
+    const addRow = document.createElement('tr');
+    const addCell = document.createElement('td');
+    const addButton = document.createElement('button');
+
+    addRow.className = 'account-form-add-row';
+    addCell.colSpan = 5;
+    addButton.type = 'button';
+    addButton.className = 'btn btn-secondary account-add-item-btn';
+    addButton.textContent = '+ Agregar producto';
+    addButton.addEventListener('click', agregarItemAlFormulario);
+    addCell.appendChild(addButton);
+    addRow.appendChild(addCell);
+
+    replaceChildren(tbody, [...rows, addRow]);
     actualizarCuentaCorrienteFormState();
-}
-
-function updateCuentaCorrienteFormPrice() {
-    const select = document.getElementById('cc-producto');
-    const priceInput = document.getElementById('cc-precio');
-    if (!select || !priceInput) {
-        return;
-    }
-
-    const producto = getProductoById(parseInt(select.value, 10));
-    priceInput.value = producto ? getPrecioUnitario(producto).toFixed(2) : '';
 }
 
 function actualizarCuentaCorrienteFormState() {
     const totalEl = document.getElementById('cc-form-total');
+    const totalWrap = document.getElementById('cc-form-total-wrap');
     const clientInput = document.getElementById('cc-cliente');
     const createBtn = document.getElementById('btn-crear-cuenta-corriente');
-    const total = cuentaCorrienteItemsForm.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+    const hint = document.getElementById('cc-form-hint');
+    const payloadItems = getCuentaCorrienteFormPayloadItems();
+    const total = payloadItems.reduce((sum, item) => sum + calcCuentaCorrienteItemSubtotal(item.cantidad, item.precio_unitario), 0);
 
     if (totalEl) {
         totalEl.textContent = fmtCurrencyAmount(total);
     }
 
+    if (totalWrap) {
+        totalWrap.classList.toggle('is-empty', payloadItems.length === 0);
+    }
+
     if (createBtn) {
         const hasClient = clientInput && clientInput.value.trim() !== '';
-        createBtn.disabled = !(hasClient && cuentaCorrienteItemsForm.length > 0);
+        const isReady = hasClient && payloadItems.length > 0;
+        createBtn.disabled = !isReady;
+
+        if (hint) {
+            hint.classList.toggle('is-hidden', isReady);
+        }
     }
 }
 
@@ -2042,7 +2217,7 @@ async function generarFactura() {
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
 
-    ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
+    ['v-producto', 'c-producto'].forEach((id) => {
         const select = document.getElementById(id);
         if (select) {
             initProductPicker(select);
@@ -2094,17 +2269,12 @@ document.addEventListener('DOMContentLoaded', () => {
         salaryRegisterBtn.addEventListener('click', registrarSueldo);
     }
 
-    const ccAddItemBtn = document.getElementById('btn-cc-agregar-item');
-    if (ccAddItemBtn) {
-        ccAddItemBtn.addEventListener('click', agregarItemAlFormulario);
-    }
-
     const ccCreateBtn = document.getElementById('btn-crear-cuenta-corriente');
     if (ccCreateBtn) {
         ccCreateBtn.addEventListener('click', crearCuentaCorriente);
     }
 
-    ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
+    ['v-producto', 'c-producto'].forEach((id) => {
         const select = document.getElementById(id);
         if (!select) {
             return;
@@ -2112,12 +2282,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.addEventListener('change', () => {
             syncProductPicker(select);
-            if (id === 'cc-producto') {
-                actualizarCampoCantidad('cc');
-                updateCuentaCorrienteFormPrice();
-                return;
-            }
-
             const prefix = id.startsWith('v-') ? 'v' : 'c';
             actualizarCampoCantidad(prefix);
 
@@ -2225,6 +2389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeAllProductPickers();
+            closeAllAccountActionMenus();
             closeProductModal();
             closeSalaryHistoryModal();
             closeSalaryEditModal();
@@ -2235,9 +2400,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', (event) => {
         const picker = event.target.closest('[data-product-picker]');
+        const accountMenu = event.target.closest('.account-actions-menu');
 
         if (!picker) {
             closeAllProductPickers();
+        }
+
+        if (!accountMenu) {
+            closeAllAccountActionMenus();
         }
     });
 
@@ -2274,7 +2444,7 @@ async function cargarProductosEnSelects() {
     try {
         productos = ensureArray(await fetchJson(API.productos));
 
-        ['v-producto', 'c-producto', 'cc-producto'].forEach((id) => {
+        ['v-producto', 'c-producto'].forEach((id) => {
             const select = document.getElementById(id);
             if (!select) return;
 
@@ -2293,9 +2463,8 @@ async function cargarProductosEnSelects() {
 
         actualizarCampoCantidad('v');
         actualizarCampoCantidad('c');
-        actualizarCampoCantidad('cc');
         calcularMontoVenta();
-        updateCuentaCorrienteFormPrice();
+        renderCuentaCorrienteFormItems();
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al cargar productos.'), 'error');
@@ -2427,10 +2596,7 @@ async function cargarSueldos() {
 function clearCuentaCorrienteForm() {
     const clientInput = document.getElementById('cc-cliente');
     const dueDateInput = document.getElementById('cc-fecha-vencimiento');
-    const quantityInput = document.getElementById('cc-cantidad');
-    const priceInput = document.getElementById('cc-precio');
-
-    cuentaCorrienteItemsForm = [];
+    cuentaCorrienteItemsForm = [createCuentaCorrienteDraftItem()];
 
     if (clientInput) {
         clientInput.value = '';
@@ -2440,63 +2606,13 @@ function clearCuentaCorrienteForm() {
         dueDateInput.value = '';
     }
 
-    if (quantityInput) {
-        quantityInput.value = '';
-    }
-
-    if (priceInput) {
-        priceInput.value = '';
-    }
-
     renderCuentaCorrienteFormItems();
-    updateCuentaCorrienteFormPrice();
 }
 
 function agregarItemAlFormulario() {
-    const select = document.getElementById('cc-producto');
-    const cantidadInput = document.getElementById('cc-cantidad');
-    const precioInput = document.getElementById('cc-precio');
-    const productoId = select ? parseInt(select.value, 10) : 0;
-    const cantidad = cantidadInput ? parseFloat(cantidadInput.value) || 0 : 0;
-    const precioUnitario = precioInput ? parseFloat(precioInput.value) || 0 : 0;
-    const producto = getProductoById(productoId);
-
-    if (!productoId || !producto) {
-        showToast('Selecciona un producto.', 'error');
-        return;
-    }
-
-    if (cantidad <= 0) {
-        showToast('Escribí una cantidad mayor a 0.', 'error');
-        return;
-    }
-
-    if (precioUnitario <= 0) {
-        showToast('Escribí un precio unitario mayor a 0.', 'error');
-        return;
-    }
-
-    if (usaCantidadEntera(producto) && !Number.isInteger(cantidad)) {
-        showToast(`Para productos por ${getUnidadMedida(producto)}, la cantidad debe ser entera.`, 'error');
-        return;
-    }
-
-    cuentaCorrienteItemsForm.push({
-        producto_id: producto.id,
-        producto: producto.nombre,
-        codigo: producto.codigo || '',
-        unidad_medida: getUnidadMedida(producto),
-        cantidad,
-        precio_unitario: precioUnitario,
-        subtotal: calcCuentaCorrienteItemSubtotal(cantidad, precioUnitario)
-    });
-
-    if (cantidadInput) {
-        cantidadInput.value = '';
-    }
+    cuentaCorrienteItemsForm.push(createCuentaCorrienteDraftItem());
 
     renderCuentaCorrienteFormItems();
-    updateCuentaCorrienteFormPrice();
 }
 
 function quitarItemDelFormulario(index) {
@@ -2530,13 +2646,14 @@ async function crearCuentaCorriente() {
     const dueDateInput = document.getElementById('cc-fecha-vencimiento');
     const cliente = clienteInput ? clienteInput.value.trim() : '';
     const fecha_vencimiento = dueDateInput ? dueDateInput.value.trim() : '';
+    const items = getCuentaCorrienteFormPayloadItems();
 
     if (!cliente) {
         showToast('Escribí el nombre del cliente.', 'error');
         return;
     }
 
-    if (!cuentaCorrienteItemsForm.length) {
+    if (!items.length) {
         showToast('Agrega al menos un producto a la cuenta corriente.', 'error');
         return;
     }
@@ -2548,7 +2665,7 @@ async function crearCuentaCorriente() {
             body: JSON.stringify({
                 cliente,
                 fecha_vencimiento: fecha_vencimiento || null,
-                items: getCuentaCorrienteFormPayloadItems()
+                items
             })
         });
 

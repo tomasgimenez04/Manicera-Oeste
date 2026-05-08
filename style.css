@@ -255,6 +255,38 @@ section {
   padding: 24px;
 }
 
+.summary-card--income {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(232, 245, 233, 0.96), rgba(255, 255, 255, 1));
+  border-color: rgba(4, 120, 87, 0.16);
+}
+
+.summary-card--income::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--green-dark);
+}
+
+.summary-card--expense {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.82), rgba(255, 255, 255, 1));
+  border-color: rgba(220, 38, 38, 0.16);
+}
+
+.summary-card--expense::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--red);
+}
+
 .panel-card,
 .movements-card,
 .form-card {
@@ -1143,12 +1175,6 @@ textarea:focus {
   color: var(--green-dark);
 }
 
-.account-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .account-status {
   display: inline-flex;
   align-items: center;
@@ -1186,22 +1212,10 @@ textarea:focus {
 }
 
 .account-pay-btn:disabled,
-.account-actions .btn:disabled {
+.account-actions-menu__item:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-.account-remove-item-btn {
-  min-width: 40px;
-  width: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-  border-radius: 999px;
-  display: inline-grid;
-  place-items: center;
+  pointer-events: none;
 }
 
 .account-modal {
@@ -1546,6 +1560,182 @@ textarea:focus {
   font-size: 34px;
 }
 
+.account-layout {
+  display: grid;
+  gap: 24px;
+}
+
+.account-form-card {
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+}
+
+.account-form-card__heading {
+  margin-bottom: 0;
+}
+
+.account-form-grid--top {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.account-form-items-shell--editor {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.account-form-items-table--editor {
+  min-width: 980px;
+}
+
+.account-form-items-table--editor thead th {
+  padding: 15px 16px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.account-form-items-table--editor tbody td {
+  padding: 14px 16px;
+}
+
+.account-form-items-table--editor th:first-child,
+.account-form-items-table--editor td:first-child {
+  min-width: 320px;
+}
+
+.account-form-items-table--editor th:nth-child(2),
+.account-form-items-table--editor td:nth-child(2) {
+  min-width: 150px;
+  text-align: center;
+}
+
+.account-form-items-table--editor th:nth-child(3),
+.account-form-items-table--editor td:nth-child(3) {
+  min-width: 180px;
+  text-align: center;
+}
+
+.account-form-items-table--editor th:nth-child(4),
+.account-form-items-table--editor td:nth-child(4) {
+  min-width: 160px;
+  text-align: right;
+}
+
+.account-form-items-table--editor th:last-child,
+.account-form-items-table--editor td:last-child {
+  width: 120px;
+  text-align: center;
+}
+
+.account-row-select,
+.account-row-input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-mid);
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+.account-row-input {
+  text-align: center;
+}
+
+.account-row-input--price {
+  text-align: center;
+}
+
+.account-form-add-row td {
+  padding: 14px 16px;
+  border-bottom: none !important;
+  background: rgba(248, 250, 252, 0.65);
+}
+
+.account-form-add-row:hover {
+  background: transparent !important;
+}
+
+.account-form-add-row .account-add-item-btn {
+  width: auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 10px 16px;
+  background: #ffffff;
+  color: var(--blue);
+  border: 1px solid rgba(37, 99, 235, 0.24);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.06);
+}
+
+.account-form-total {
+  margin-top: 0;
+}
+
+.account-form-total.is-empty {
+  border-color: var(--border-light);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
+}
+
+.account-form-total.is-empty span,
+.account-form-total.is-empty strong {
+  color: var(--text-hint);
+}
+
+.account-form-total strong {
+  font-size: clamp(26px, 4vw, 34px);
+}
+
+.account-form-actions {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.account-create-btn {
+  width: min(100%, 320px);
+}
+
+.account-form-hint {
+  max-width: 420px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.account-form-hint.is-hidden {
+  display: none;
+}
+
+.account-summary-panel {
+  padding: 26px;
+}
+
+.account-summary-grid--three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.account-summary-grid--three .account-summary-item {
+  min-height: 132px;
+}
+
+.account-remove-item-btn {
+  min-width: auto;
+  width: auto;
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .account-table th {
   background: rgba(248, 250, 252, 0.86);
   color: var(--muted-strong);
@@ -1556,12 +1746,109 @@ textarea:focus {
   padding-bottom: 18px;
 }
 
+.account-table-shell,
+.account-table,
+.account-table tbody,
+.account-table tr,
+.account-table td {
+  overflow: visible;
+}
+
 .account-table tbody tr:hover {
   background: rgba(248, 250, 252, 0.88);
 }
 
-.account-actions {
-  gap: 10px;
+.account-table th:last-child,
+.account-table td:last-child {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-actions-menu {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+  z-index: 1;
+}
+
+.account-actions-menu.is-open {
+  z-index: 40;
+}
+
+.account-actions-menu__trigger {
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-mid);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-actions-menu__trigger:hover,
+.account-actions-menu__trigger:focus-visible {
+  background: var(--bg-secondary);
+  border-color: var(--border-strong);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+  outline: none;
+}
+
+.account-actions-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 188px;
+  display: grid;
+  padding: 8px 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.14);
+  z-index: 30;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+}
+
+.account-actions-menu.is-open .account-actions-menu__dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.account-actions-menu__item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.account-actions-menu__item:hover {
+  background: var(--bg-secondary);
+}
+
+.account-actions-menu__item--separated {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.account-actions-menu__item--danger {
+  color: var(--red);
 }
 
 .load-more-cell {
@@ -1978,6 +2265,11 @@ textarea:focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .account-form-grid--top,
+  .account-summary-grid--three {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-grid--two,
   .dashboard-grid--sidebar {
     grid-template-columns: 1fr;
@@ -2117,7 +2409,8 @@ textarea:focus {
   }
 
   .account-form-card,
-  .account-summary-card {
+  .account-summary-card,
+  .account-summary-panel {
     padding: 20px 16px;
   }
 
@@ -2139,8 +2432,24 @@ textarea:focus {
     font-size: 30px;
   }
 
+  .account-form-items-table--editor {
+    min-width: 860px;
+  }
+
   .account-form-items-shell {
     padding: 8px;
+  }
+
+  .account-form-actions {
+    justify-items: stretch;
+  }
+
+  .account-create-btn {
+    width: 100%;
+  }
+
+  .account-form-hint {
+    text-align: left;
   }
 
   .account-payment-line strong {

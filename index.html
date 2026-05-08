@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260507-4">
+  <link rel="stylesheet" href="style.css?v=20260507-11">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260507-5" defer></script>
+  <script src="logic.js?v=20260507-11" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -39,7 +39,7 @@
     <!-- Secciones de la aplicación -->
     <section id="inicio" class="section active">
       <div class="summary-grid">
-        <article class="summary-card">
+        <article class="summary-card summary-card--income">
           <div class="card-top">
             <small>Ingresos hoy</small>
             <span class="card-icon card-icon--income">&uarr;</span>
@@ -47,7 +47,7 @@
           <strong class="summary-value amount positive" id="stat-ingresos">$0</strong>
         </article>
 
-        <article class="summary-card">
+        <article class="summary-card summary-card--expense">
           <div class="card-top">
             <small>Egresos hoy</small>
             <span class="card-icon card-icon--expense">&darr;</span>
@@ -349,7 +349,7 @@
         </div>
 
         <div class="summary-grid summary-grid--compact">
-          <article class="summary-card">
+          <article class="summary-card summary-card--income">
             <div class="card-top">
               <small>Total ingresos</small>
               <span class="card-icon card-icon--income">&uarr;</span>
@@ -357,7 +357,7 @@
             <strong class="summary-value amount positive" id="b-ingresos">$0</strong>
           </article>
 
-          <article class="summary-card">
+          <article class="summary-card summary-card--expense">
             <div class="card-top">
               <small>Total egresos</small>
               <span class="card-icon card-icon--expense">&darr;</span>
@@ -458,122 +458,69 @@
     </section>
 
     <section id="cuenta-corriente" class="section">
-      <div class="dashboard-grid dashboard-grid--two">
+      <div class="account-layout">
         <article class="form-card account-form-card">
-          <div class="account-form-stack">
-            <section class="account-form-section account-form-section--account">
-              <div class="panel-heading account-section-heading">
-                <h2>Crear cuenta corriente</h2>
-                <p>Registra ventas a cobrar más adelante y descuenta el stock en el momento.</p>
-              </div>
+          <div class="panel-heading account-form-card__heading">
+            <h2>Crear cuenta corriente</h2>
+            <p>Registra ventas a cobrar más adelante y descuenta el stock en el momento.</p>
+          </div>
 
-              <div class="form-grid account-form-grid">
-                <div class="form-group">
-                  <label for="cc-cliente">Cliente</label>
-                  <input type="text" id="cc-cliente" placeholder="Ej: Kiosco La Plaza">
-                </div>
-                <div class="form-group">
-                  <label for="cc-fecha-vencimiento">Fecha vencimiento (opcional)</label>
-                  <input type="date" id="cc-fecha-vencimiento">
-                </div>
-              </div>
-            </section>
+          <div class="form-grid account-form-grid account-form-grid--top">
+            <div class="form-group">
+              <label for="cc-cliente">Cliente</label>
+              <input type="text" id="cc-cliente" placeholder="Ej: Kiosco La Plaza">
+            </div>
+            <div class="form-group">
+              <label for="cc-fecha-vencimiento">Fecha vencimiento (opcional)</label>
+              <input type="date" id="cc-fecha-vencimiento">
+            </div>
+          </div>
 
-            <section class="account-form-section account-form-section--products">
-              <div class="panel-heading panel-heading--compact account-section-heading account-form-subheading">
-                <h2>Agregar productos</h2>
-                <p>Selecciona productos, ajusta precio si hace falta y arma el detalle de la cuenta.</p>
-              </div>
+          <div class="table-shell account-form-items-shell account-form-items-shell--editor">
+            <table class="movements-table account-form-items-table account-form-items-table--editor">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio unitario</th>
+                  <th>Subtotal</th>
+                  <th>Quitar</th>
+                </tr>
+              </thead>
+              <tbody id="cc-form-items-body">
+                <tr>
+                  <td colspan="5" class="empty">Cargando filas...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-              <div class="account-add-product-panel">
-                <div class="form-grid form-grid--triple account-product-grid">
-                  <div class="form-group">
-                    <label for="cc-producto">Producto</label>
-                    <div class="product-picker" data-product-picker>
-                      <select id="cc-producto" class="product-picker__native"></select>
-                      <button
-                        class="product-picker__trigger"
-                        type="button"
-                        data-product-picker-trigger
-                        aria-haspopup="listbox"
-                        aria-expanded="false"
-                      >
-                        <span class="product-picker__value" data-product-picker-value>Selecciona un producto</span>
-                        <span class="product-picker__chevron" aria-hidden="true">▾</span>
-                      </button>
-                      <div class="product-picker__menu is-hidden" data-product-picker-menu>
-                        <div class="product-picker__options" data-product-picker-options role="listbox"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label for="cc-cantidad">Cantidad</label>
-                    <input type="number" id="cc-cantidad" placeholder="0.0" min="0" step="0.5">
-                  </div>
-                  <div class="form-group">
-                    <label for="cc-precio">Precio unitario ($)</label>
-                    <input type="number" id="cc-precio" placeholder="0" min="0" step="0.01">
-                  </div>
-                </div>
+          <div class="account-form-total is-empty" id="cc-form-total-wrap">
+            <span>Total</span>
+            <strong id="cc-form-total">$0,00</strong>
+          </div>
 
-                <button class="btn btn-primary account-add-item-btn" type="button" id="btn-cc-agregar-item">
-                  Agregar producto
-                </button>
-              </div>
-            </section>
-
-            <section class="account-form-section account-form-section--items">
-              <div class="panel-heading panel-heading--compact account-section-heading">
-                <h2>Detalle cargado</h2>
-                <p>Revisa los productos agregados antes de confirmar la cuenta corriente.</p>
-              </div>
-
-              <div class="table-shell account-form-items-shell">
-                <table class="movements-table account-form-items-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Cantidad</th>
-                      <th>Precio unitario</th>
-                      <th>Subtotal</th>
-                      <th>Quitar</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cc-form-items-body">
-                    <tr>
-                      <td colspan="5" class="empty">Todavía no agregaste productos.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="account-form-summary-card">
-              <div class="account-form-total">
-                <span>Total</span>
-                <strong id="cc-form-total">$0,00</strong>
-              </div>
-
-              <button class="btn btn-primary account-create-btn" type="button" id="btn-crear-cuenta-corriente" disabled>
-                Crear cuenta corriente
-              </button>
-            </section>
+          <div class="account-form-actions">
+            <button class="btn btn-primary account-create-btn" type="button" id="btn-crear-cuenta-corriente" disabled>
+              Crear cuenta corriente
+            </button>
+            <p class="account-form-hint" id="cc-form-hint">Completá el cliente y agregá al menos un producto para continuar.</p>
           </div>
         </article>
 
-        <article class="panel-card account-summary-card">
+        <article class="panel-card account-summary-panel">
           <div class="panel-heading">
             <h2>Resumen</h2>
             <p>Control rápido del saldo pendiente y del dinero cobrado este mes.</p>
           </div>
 
-          <div class="account-summary-grid">
+          <div class="account-summary-grid account-summary-grid--three">
             <div class="account-summary-item account-summary-item--danger">
               <span class="account-summary-label">Pendientes de cobro</span>
               <strong class="account-summary-value account-summary-value--danger" id="cc-resumen-pendientes">$0,00</strong>
             </div>
             <div class="account-summary-item account-summary-item--warning">
-              <span class="account-summary-label">Cuentas parcialmente pagadas</span>
+              <span class="account-summary-label">Parcialmente pagadas</span>
               <strong class="account-summary-value account-summary-value--warning" id="cc-resumen-parciales">$0,00</strong>
             </div>
             <div class="account-summary-item account-summary-item--success">
@@ -582,36 +529,36 @@
             </div>
           </div>
         </article>
+
+        <article class="panel-card">
+          <div class="panel-heading">
+            <h2>Cuentas corrientes activas</h2>
+            <p>Seguimiento de vencimientos, pagos parciales y saldos pendientes por cliente.</p>
+          </div>
+
+          <div class="table-shell account-table-shell">
+            <table class="movements-table account-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Fecha creación</th>
+                  <th>Fecha vencimiento</th>
+                  <th>Monto total</th>
+                  <th>Monto pagado</th>
+                  <th>Saldo restante</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-cuentas-corrientes">
+                <tr>
+                  <td colspan="8" class="empty">Cargando cuentas corrientes...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
       </div>
-
-      <article class="panel-card">
-        <div class="panel-heading">
-          <h2>Cuentas corrientes activas</h2>
-          <p>Seguimiento de vencimientos, pagos parciales y saldos pendientes por cliente.</p>
-        </div>
-
-        <div class="table-shell">
-          <table class="movements-table account-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Fecha creación</th>
-                <th>Fecha vencimiento</th>
-                <th>Monto total</th>
-                <th>Monto pagado</th>
-                <th>Saldo restante</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-cuentas-corrientes">
-              <tr>
-                <td colspan="8" class="empty">Cargando cuentas corrientes...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
     </section>
 
     <section id="stock" class="section">
