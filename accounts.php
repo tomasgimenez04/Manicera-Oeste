@@ -25,6 +25,15 @@ function get_json_input() {
     return is_array($data) ? $data : [];
 }
 
+function parse_date_value($value) {
+    if (!$value) {
+        return null;
+    }
+
+    $date = DateTimeImmutable::createFromFormat('Y-m-d', $value);
+    return $date ?: null;
+}
+
 function format_date_br($value) {
     if (!$value) {
         return null;
@@ -47,6 +56,20 @@ function format_datetime_br($value) {
     } catch (Throwable $error) {
         return null;
     }
+}
+
+function format_quantity_label($cantidad, $unidadMedida) {
+    $value = floatval($cantidad);
+
+    if ($unidadMedida === 'kg') {
+        return number_format($value, 2, ',', '.') . ' kg';
+    }
+
+    $label = $unidadMedida === 'bandeja'
+        ? (abs($value) === 1.0 ? 'bandeja' : 'bandejas')
+        : (abs($value) === 1.0 ? 'unidad' : 'unidades');
+
+    return number_format($value, 0, ',', '.') . ' ' . $label;
 }
 
 function get_account_state($montoTotal, $montoPagado, $estadoActual = null) {
@@ -211,13 +234,24 @@ function get_account_payment_history(mysqli $conn, $cuentaId) {
 function get_active_product(mysqli $conn, $productoId) {
     $stmt = $conn->prepare('
         SELECT
-            id,
-            nombre,
-            COALESCE(codigo, "") AS codigo,
-            COALESCE(unidad_medida, "kg") AS unidad_medida,
-            COALESCE(precio_unitario, 0) AS precio_unitario
+            productos.id,
+            productos.nombre,
+            COALESCE(productos.codigo, "") AS codigo,
+            COALESCE(productos.unidad_medida, "kg") AS unidad_medida,
+            COALESCE(productos.precio_unitario, 0) AS precio_unitario,
+            COALESCE(productos.stock_base, 0) + COALESCE((
+                SELECT SUM(
+                    CASE
+                        WHEN movimientos.tipo = "compra" THEN movimientos.cantidad
+                        WHEN movimientos.tipo = "venta" THEN -movimientos.cantidad
+                        ELSE 0
+                    END
+                )
+                FROM movimientos
+                WHERE movimientos.producto_id = productos.id
+            ), 0) AS stock_cantidad
         FROM productos
-        WHERE id = ? AND activo = 1
+        WHERE productos.id = ? AND productos.activo = 1
     ');
     $stmt->bind_param('i', $productoId);
     $stmt->execute();
@@ -230,6 +264,7 @@ function get_active_product(mysqli $conn, $productoId) {
 
     $row['id'] = intval($row['id']);
     $row['precio_unitario'] = floatval($row['precio_unitario']);
+    $row['stock_cantidad'] = floatval($row['stock_cantidad']);
     return $row;
 }
 
@@ -247,8 +282,7 @@ if ($method === 'GET' && isset($_GET['id'])) {
         respond_json(['error' => 'ID de cuenta inválido.'], 400);
     }
 
-    $history = get_account_payment_history($conn, $cuentaId);
-    respond_json($history);
+    respond_json(get_account_payment_history($conn, $cuentaId));
 }
 
 if ($method === 'GET') {
@@ -356,12 +390,18 @@ if ($method === 'POST') {
             respond_json(['error' => 'El cliente es obligatorio.'], 400);
         }
 
+        if ($fechaVencimiento !== '' && !parse_date_value($fechaVencimiento)) {
+            respond_json(['error' => 'La fecha de vencimiento no es válida.'], 400);
+        }
+
         if (!$items) {
             respond_json(['error' => 'Agrega al menos un producto a la cuenta corriente.'], 400);
         }
 
         $validatedItems = [];
         $montoTotal = 0.0;
+        $stockRequestedByProduct = [];
+        $productsById = [];
 
         foreach ($items as $index => $item) {
             $productoId = intval($item['producto_id'] ?? 0);
@@ -382,12 +422,15 @@ if ($method === 'POST') {
 
             $producto = get_active_product($conn, $productoId);
             if (!$producto) {
-                respond_json(['error' => "El producto del item #" . ($index + 1) . " no existe o fue eliminado."], 404);
+                respond_json(['error' => 'El producto del ítem #' . ($index + 1) . ' no existe o fue eliminado.'], 404);
             }
 
             if (in_array($producto['unidad_medida'], ['unidad', 'bandeja'], true) && floor($cantidad) != $cantidad) {
-                respond_json(['error' => "La cantidad del producto {$producto['nombre']} debe ser entera."], 400);
+                respond_json(['error' => 'La cantidad del producto ' . $producto['nombre'] . ' debe ser entera.'], 400);
             }
+
+            $stockRequestedByProduct[$productoId] = ($stockRequestedByProduct[$productoId] ?? 0) + $cantidad;
+            $productsById[$productoId] = $producto;
 
             $subtotal = round($cantidad * $precioUnitario, 2);
             $montoTotal += $subtotal;
@@ -399,6 +442,15 @@ if ($method === 'POST') {
                 'precio_unitario' => $precioUnitario,
                 'subtotal' => $subtotal
             ];
+        }
+
+        foreach ($stockRequestedByProduct as $productoId => $cantidadSolicitada) {
+            $producto = $productsById[$productoId];
+
+            if ($cantidadSolicitada > $producto['stock_cantidad'] + 0.00001) {
+                $disponible = format_quantity_label($producto['stock_cantidad'], $producto['unidad_medida']);
+                respond_json(['error' => 'Stock insuficiente para ' . $producto['nombre'] . '. Disponible: ' . $disponible . '.'], 400);
+            }
         }
 
         if ($montoTotal <= 0) {
@@ -440,7 +492,7 @@ if ($method === 'POST') {
 
                 if (!$itemStmt->execute()) {
                     $itemStmt->close();
-                    throw new Exception('No se pudo guardar un item de la cuenta corriente.', 500);
+                    throw new Exception('No se pudo guardar un ítem de la cuenta corriente.', 500);
                 }
 
                 $itemStmt->close();
@@ -634,3 +686,4 @@ if ($method === 'DELETE') {
 }
 
 respond_json(['error' => 'Método no permitido.'], 405);
+?>

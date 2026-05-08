@@ -7,14 +7,14 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 include 'connection.php';
 
-$metodo = $_SERVER['REQUEST_METHOD'];
+$method = $_SERVER['REQUEST_METHOD'];
 
-if ($metodo === 'OPTIONS') {
+if ($method === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-if ($metodo === 'GET') {
+if ($method === 'GET') {
     $resultado = $conn->query("
         SELECT
             productos.id,
@@ -53,13 +53,13 @@ if ($metodo === 'GET') {
     exit;
 }
 
-if ($metodo === 'POST') {
+if ($method === 'POST') {
     $body = json_decode(file_get_contents('php://input'), true);
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
-    $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
-    $stock_actual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
-    $precio_unitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
+    $unidadMedida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
+    $stockActual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
+    $precioUnitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
 
     if ($nombre === '') {
         http_response_code(400);
@@ -73,19 +73,19 @@ if ($metodo === 'POST') {
         exit;
     }
 
-    if (!in_array($unidad_medida, ['kg', 'unidad', 'bandeja'], true)) {
+    if (!in_array($unidadMedida, ['kg', 'unidad', 'bandeja'], true)) {
         http_response_code(400);
         echo json_encode(['error' => 'La unidad de medida debe ser "kg", "unidad" o "bandeja".']);
         exit;
     }
 
-    if (in_array($unidad_medida, ['unidad', 'bandeja'], true) && floor($stock_actual) != $stock_actual) {
+    if (in_array($unidadMedida, ['unidad', 'bandeja'], true) && floor($stockActual) != $stockActual) {
         http_response_code(400);
         echo json_encode(['error' => 'El stock debe ser entero para esa unidad de medida.']);
         exit;
     }
 
-    if ($precio_unitario < 0) {
+    if ($precioUnitario < 0) {
         http_response_code(400);
         echo json_encode(['error' => 'El precio debe ser mayor o igual a 0.']);
         exit;
@@ -119,17 +119,21 @@ if ($metodo === 'POST') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('INSERT INTO productos (nombre, codigo, unidad_medida, precio_unitario) VALUES (?, ?, ?, ?)');
-    $stmt->bind_param('sssd', $nombre, $codigo, $unidad_medida, $precio_unitario);
+    $stmt = $conn->prepare('
+        INSERT INTO productos (nombre, codigo, unidad_medida, stock_base, precio_unitario)
+        VALUES (?, ?, ?, ?, ?)
+    ');
+    $stmt->bind_param('sssdd', $nombre, $codigo, $unidadMedida, $stockActual, $precioUnitario);
 
     if ($stmt->execute()) {
         echo json_encode([
             'ok' => true,
-            'id' => $conn->insert_id,
+            'id' => intval($conn->insert_id),
             'nombre' => $nombre,
             'codigo' => $codigo,
-            'unidad_medida' => $unidad_medida,
-            'precio_unitario' => $precio_unitario
+            'unidad_medida' => $unidadMedida,
+            'stock_actual' => $stockActual,
+            'precio_unitario' => $precioUnitario
         ]);
     } else {
         http_response_code(500);
@@ -140,14 +144,14 @@ if ($metodo === 'POST') {
     exit;
 }
 
-if ($metodo === 'PUT') {
+if ($method === 'PUT') {
     $body = json_decode(file_get_contents('php://input'), true);
     $id = isset($body['id']) ? intval($body['id']) : 0;
     $nombre = isset($body['nombre']) ? trim($body['nombre']) : '';
     $codigo = isset($body['codigo']) ? trim($body['codigo']) : '';
-    $unidad_medida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
-    $stock_actual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
-    $precio_unitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
+    $unidadMedida = isset($body['unidad_medida']) ? trim($body['unidad_medida']) : 'kg';
+    $stockActual = isset($body['stock_actual']) ? floatval($body['stock_actual']) : 0;
+    $precioUnitario = isset($body['precio_unitario']) ? floatval($body['precio_unitario']) : 0;
 
     if ($id <= 0) {
         http_response_code(400);
@@ -167,19 +171,19 @@ if ($metodo === 'PUT') {
         exit;
     }
 
-    if (!in_array($unidad_medida, ['kg', 'unidad', 'bandeja'], true)) {
+    if (!in_array($unidadMedida, ['kg', 'unidad', 'bandeja'], true)) {
         http_response_code(400);
         echo json_encode(['error' => 'La unidad de medida debe ser "kg", "unidad" o "bandeja".']);
         exit;
     }
 
-    if (in_array($unidad_medida, ['unidad', 'bandeja'], true) && floor($stock_actual) != $stock_actual) {
+    if (in_array($unidadMedida, ['unidad', 'bandeja'], true) && floor($stockActual) != $stockActual) {
         http_response_code(400);
         echo json_encode(['error' => 'El stock debe ser entero para esa unidad de medida.']);
         exit;
     }
 
-    if ($precio_unitario < 0) {
+    if ($precioUnitario < 0) {
         http_response_code(400);
         echo json_encode(['error' => 'El precio debe ser mayor o igual a 0.']);
         exit;
@@ -226,8 +230,8 @@ if ($metodo === 'PUT') {
         exit;
     }
 
-    $movimientos_delta = floatval($stockInfo['movimientos_delta']);
-    $stock_base = $stock_actual - $movimientos_delta;
+    $movimientosDelta = floatval($stockInfo['movimientos_delta']);
+    $stockBase = $stockActual - $movimientosDelta;
 
     $stmt = $conn->prepare('SELECT id FROM productos WHERE nombre = ? AND activo = 1 AND id <> ?');
     $stmt->bind_param('si', $nombre, $id);
@@ -257,8 +261,12 @@ if ($metodo === 'PUT') {
 
     $stmt->close();
 
-    $stmt = $conn->prepare('UPDATE productos SET nombre = ?, codigo = ?, unidad_medida = ?, stock_base = ?, precio_unitario = ? WHERE id = ? AND activo = 1');
-    $stmt->bind_param('sssddi', $nombre, $codigo, $unidad_medida, $stock_base, $precio_unitario, $id);
+    $stmt = $conn->prepare('
+        UPDATE productos
+        SET nombre = ?, codigo = ?, unidad_medida = ?, stock_base = ?, precio_unitario = ?
+        WHERE id = ? AND activo = 1
+    ');
+    $stmt->bind_param('sssddi', $nombre, $codigo, $unidadMedida, $stockBase, $precioUnitario, $id);
 
     if ($stmt->execute()) {
         echo json_encode([
@@ -266,9 +274,9 @@ if ($metodo === 'PUT') {
             'id' => $id,
             'nombre' => $nombre,
             'codigo' => $codigo,
-            'unidad_medida' => $unidad_medida,
-            'stock_actual' => $stock_actual,
-            'precio_unitario' => $precio_unitario
+            'unidad_medida' => $unidadMedida,
+            'stock_actual' => $stockActual,
+            'precio_unitario' => $precioUnitario
         ]);
     } else {
         http_response_code(500);
@@ -279,7 +287,7 @@ if ($metodo === 'PUT') {
     exit;
 }
 
-if ($metodo === 'DELETE') {
+if ($method === 'DELETE') {
     $body = json_decode(file_get_contents('php://input'), true);
     $id = isset($body['id']) ? intval($body['id']) : 0;
 

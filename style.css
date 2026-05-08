@@ -1291,6 +1291,48 @@ textarea:focus {
   text-align: right;
 }
 
+.account-payment-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.96), rgba(255, 255, 255, 1));
+}
+
+.account-payment-suggestion__label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-payment-suggestion__button {
+  border: none;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--blue);
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.account-payment-suggestion__button:hover {
+  background: rgba(37, 99, 235, 0.14);
+  transform: translateY(-1px);
+}
+
+.account-payment-suggestion__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .account-history-table th:nth-child(2),
 .account-history-table td:nth-child(2) {
   width: 150px;

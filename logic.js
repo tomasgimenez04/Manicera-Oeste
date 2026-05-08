@@ -46,6 +46,7 @@ let filtroActual = 'dia';
 let filtroFacturacionActual = 'dia';
 let productoEnEdicionId = null;
 let facturacionSeleccionada = new Set();
+let facturacionIdsFacturados = new Set();
 let historialSueldoAbierto = null;
 let sueldoEnEdicionId = null;
 let sueldosPagando = new Set();
@@ -1646,12 +1647,20 @@ function openAccountPaymentModal(id) {
     }
 
     cuentaCorrientePagoId = Number(id);
+    const saldoRestante = Number(cuenta.saldo_restante || 0);
     document.getElementById('account-payment-client').textContent = cuenta.cliente || '-';
-    document.getElementById('account-payment-balance').textContent = fmtCurrencyAmount(cuenta.saldo_restante || 0);
+    document.getElementById('account-payment-balance').textContent = fmtCurrencyAmount(saldoRestante);
     document.getElementById('account-payment-subtitle').textContent = `Registra un cobro para la cuenta corriente de ${cuenta.cliente}.`;
     document.getElementById('account-payment-amount').value = '';
-    document.getElementById('account-payment-amount').max = String(Number(cuenta.saldo_restante || 0).toFixed(2));
+    document.getElementById('account-payment-amount').placeholder = saldoRestante > 0 ? saldoRestante.toFixed(2) : '0';
+    document.getElementById('account-payment-amount').max = String(saldoRestante.toFixed(2));
     document.getElementById('account-payment-note').value = '';
+    const fillTotalButton = document.getElementById('account-payment-fill-total');
+    if (fillTotalButton) {
+        fillTotalButton.textContent = fmtCurrencyAmount(saldoRestante);
+        fillTotalButton.dataset.amount = saldoRestante.toFixed(2);
+        fillTotalButton.disabled = saldoRestante <= 0;
+    }
 
     modal.classList.remove('is-hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -1668,6 +1677,24 @@ function closeAccountPaymentModal() {
     modal.setAttribute('aria-hidden', 'true');
     cuentaCorrientePagoId = null;
     updateModalBodyLock();
+}
+
+function completarPagoCuentaCorrienteTotal() {
+    if (!cuentaCorrientePagoId) {
+        return;
+    }
+
+    const cuenta = getCuentaCorrienteById(cuentaCorrientePagoId);
+    const amountInput = document.getElementById('account-payment-amount');
+    const saldoRestante = Number(cuenta && cuenta.saldo_restante) || 0;
+
+    if (!amountInput || saldoRestante <= 0) {
+        return;
+    }
+
+    amountInput.value = saldoRestante.toFixed(2);
+    amountInput.focus();
+    amountInput.select();
 }
 
 function openAccountHistoryModal(cliente = 'la cuenta corriente seleccionada') {
@@ -1796,6 +1823,49 @@ function getFacturacionSortTimestamp(item) {
     const isoText = `${year}-${month}-${day}T${hora || '00:00'}:00`;
     const timestamp = new Date(isoText).getTime();
     return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function createLocalDateFromFacturacionItem(item) {
+    const fecha = String(item && item.fecha ? item.fecha : '');
+    const [day, month, year] = fecha.split('/').map((value) => Number(value));
+
+    if (!day || !month || !year) {
+        return null;
+    }
+
+    const date = new Date(year, month - 1, day);
+    return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function isFacturacionItemWithinFilter(item, filtro) {
+    const itemDate = createLocalDateFromFacturacionItem(item);
+    if (!itemDate) {
+        return false;
+    }
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    if (filtro === 'dia') {
+        return itemDate.getTime() === todayStart.getTime();
+    }
+
+    if (filtro === 'semana') {
+        const dayOfWeek = todayStart.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(todayStart);
+        monday.setDate(todayStart.getDate() + mondayOffset);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return itemDate >= monday && itemDate <= sunday;
+    }
+
+    if (filtro === 'mes') {
+        return itemDate.getFullYear() === todayStart.getFullYear()
+            && itemDate.getMonth() === todayStart.getMonth();
+    }
+
+    return true;
 }
 
 function renderStockList() {
@@ -2159,7 +2229,6 @@ async function generarFactura() {
     }
 
     const button = document.getElementById('btn-generar-factura');
-    const total = items.reduce((sum, item) => sum + Number(item.monto || 0), 0);
     const itemsIds = items.map((item) => getFacturacionItemId(item)).filter(Boolean);
 
     if (button) {
@@ -2171,8 +2240,7 @@ async function generarFactura() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                items_ids: itemsIds,
-                total
+                items_ids: itemsIds
             })
         });
 
@@ -2190,7 +2258,7 @@ async function generarFactura() {
             numero: response.numero,
             numeroFormateado: response.numero_formateado || formatInvoiceNumber(response.numero),
             fecha: response.fecha || new Date().toLocaleDateString('es-AR'),
-            total,
+            total: Number(response.total || 0),
             items
         };
         const invoiceAssets = await loadInvoiceContactAssets();
@@ -2199,9 +2267,7 @@ async function generarFactura() {
         doc.save(getInvoiceFileName(factura.numeroFormateado, factura.fecha));
 
         facturacionSeleccionada.clear();
-        updateFacturacionButtonState();
-        updateFacturacionSelectionSummary();
-        renderFacturacionTable();
+        await cargarFacturacion();
         showToast(`Factura N${factura.numeroFormateado} generada.`, 'venta');
     } catch (error) {
         console.error(error);
@@ -2369,6 +2435,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const accountPaymentSaveBtn = document.getElementById('account-payment-save-btn');
     if (accountPaymentSaveBtn) {
         accountPaymentSaveBtn.addEventListener('click', registrarPagoCuentaCorriente);
+    }
+
+    const accountPaymentFillTotalBtn = document.getElementById('account-payment-fill-total');
+    if (accountPaymentFillTotalBtn) {
+        accountPaymentFillTotalBtn.addEventListener('click', completarPagoCuentaCorrienteTotal);
     }
 
     document.querySelectorAll('[data-account-history-close]').forEach((element) => {
@@ -3099,17 +3170,25 @@ async function cargarBalance() {
 
 async function cargarFacturacion() {
     try {
-        const movimientos = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroFacturacionActual}&tipo=venta`));
+        const [movimientosData, cuentasData, facturasData] = await Promise.all([
+            fetchJson(`${API.movimientos}?filtro=${filtroFacturacionActual}&tipo=venta`),
+            fetchJson(API.accounts),
+            fetchJson(API.invoices)
+        ]);
+        const movimientos = ensureArray(movimientosData);
         const ventasCaja = movimientos.filter((item) => {
             return item.tipo === 'venta' && Number(item.producto_id) > 0 && Number(item.monto || 0) > 0;
         });
-        const cuentasData = await fetchJson(API.accounts);
         const cuentasPayload = Array.isArray(cuentasData) ? { items: cuentasData } : (cuentasData || {});
-        const ventasCuentaCorriente = mapCuentaCorrienteItemsToFacturacion(cuentasPayload.items);
+        const ventasCuentaCorriente = mapCuentaCorrienteItemsToFacturacion(cuentasPayload.items)
+            .filter((item) => isFacturacionItemWithinFilter(item, filtroFacturacionActual));
+        facturacionIdsFacturados = new Set(ensureArray(facturasData && facturasData.billed_items));
 
-        ventasFacturacion = [...ventasCaja, ...ventasCuentaCorriente].sort((a, b) => {
-            return getFacturacionSortTimestamp(b) - getFacturacionSortTimestamp(a);
-        });
+        ventasFacturacion = [...ventasCaja, ...ventasCuentaCorriente]
+            .filter((item) => !facturacionIdsFacturados.has(getFacturacionItemId(item)))
+            .sort((a, b) => {
+                return getFacturacionSortTimestamp(b) - getFacturacionSortTimestamp(a);
+            });
         facturacionSeleccionada.clear();
         resetVisibleCount('facturacion');
         renderFacturacionTable();
