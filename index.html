@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260508-15">
+  <link rel="stylesheet" href="style.css?v=20260508-17">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260508-15" defer></script>
+  <script src="logic.js?v=20260508-16" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -30,7 +30,6 @@
     <!-- Navegación principal -->
     <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
-      <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
       <button class="nav-btn" type="button" data-section="facturacion">Facturación</button>
       <button class="nav-btn" type="button" data-section="cuenta-corriente">Cuenta corriente</button>
@@ -53,61 +52,7 @@
     </nav>
 
     <!-- Secciones de la aplicación -->
-    <section id="inicio" class="section active">
-      <div class="summary-grid">
-        <article class="summary-card summary-card--income">
-          <div class="card-top">
-            <small>Ingresos hoy</small>
-            <span class="card-icon card-icon--income">&uarr;</span>
-          </div>
-          <strong class="summary-value amount positive" id="stat-ingresos">$0</strong>
-        </article>
-
-        <article class="summary-card summary-card--expense">
-          <div class="card-top">
-            <small>Egresos hoy</small>
-            <span class="card-icon card-icon--expense">&darr;</span>
-          </div>
-          <strong class="summary-value amount negative" id="stat-egresos">$0</strong>
-        </article>
-
-        <article class="summary-card" id="inicio-balance-card">
-          <div class="card-top">
-            <small>Balance hoy</small>
-            <span class="card-icon card-icon--balance">=</span>
-          </div>
-          <strong class="summary-value amount positive" id="stat-balance">$0</strong>
-        </article>
-      </div>
-
-      <article class="movements-card">
-        <div class="panel-heading">
-          <h2>Historial de movimientos</h2>
-          <p>Vista rápida de ventas, compras y otros movimientos registrados durante el día.</p>
-        </div>
-
-        <div class="table-shell">
-          <table class="movements-table">
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Producto/Descripción</th>
-                <th>Cantidad</th>
-                <th>Monto</th>
-                <th>Hora</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-inicio">
-              <tr>
-                <td colspan="5" class="empty">Aún no hay movimientos registrados.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
-    </section>
-
-    <section id="registrar" class="section section--movements">
+    <section id="inicio" class="section active section--movements">
       <div class="dashboard-grid dashboard-grid--two register-layout">
         <article class="form-card">
           <div class="panel-heading">
@@ -364,23 +309,73 @@
           </div>
         </div>
 
-        <div class="summary-grid summary-grid--compact">
-          <article class="summary-card summary-card--income">
-            <div class="card-top">
-              <small>Total ingresos</small>
-              <span class="card-icon card-icon--income">&uarr;</span>
+        <div class="balance-overview">
+          <article class="balance-fold balance-fold--income" data-balance-fold="ingresos">
+            <button
+              class="balance-fold__trigger"
+              type="button"
+              data-balance-fold-trigger="ingresos"
+              aria-expanded="false"
+              aria-controls="balance-fold-body-ingresos"
+            >
+              <span class="balance-fold__summary">
+                <small>Ingresos</small>
+                <strong class="balance-fold__amount amount positive" id="b-ingresos">$0</strong>
+              </span>
+              <span class="balance-fold__caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="balance-fold__body" id="balance-fold-body-ingresos">
+              <div class="balance-fold__metrics">
+                <div class="balance-fold__row">
+                  <span>Hoy</span>
+                  <strong class="amount positive" id="b-ingresos-dia">$0</strong>
+                </div>
+                <div class="balance-fold__row">
+                  <span>Esta semana</span>
+                  <strong class="amount positive" id="b-ingresos-semana">$0</strong>
+                </div>
+                <div class="balance-fold__row">
+                  <span>Este mes</span>
+                  <strong class="amount positive" id="b-ingresos-mes">$0</strong>
+                </div>
+              </div>
             </div>
-            <strong class="summary-value amount positive" id="b-ingresos">$0</strong>
           </article>
 
-          <article class="summary-card summary-card--expense">
-            <div class="card-top">
-              <small>Total egresos</small>
-              <span class="card-icon card-icon--expense">&darr;</span>
+          <article class="balance-fold balance-fold--expense" data-balance-fold="egresos">
+            <button
+              class="balance-fold__trigger"
+              type="button"
+              data-balance-fold-trigger="egresos"
+              aria-expanded="false"
+              aria-controls="balance-fold-body-egresos"
+            >
+              <span class="balance-fold__summary">
+                <small>Egresos</small>
+                <strong class="balance-fold__amount amount negative" id="b-egresos">$0</strong>
+              </span>
+              <span class="balance-fold__caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="balance-fold__body" id="balance-fold-body-egresos">
+              <div class="balance-fold__metrics">
+                <div class="balance-fold__row">
+                  <span>Hoy</span>
+                  <strong class="amount negative" id="b-egresos-dia">$0</strong>
+                </div>
+                <div class="balance-fold__row">
+                  <span>Esta semana</span>
+                  <strong class="amount negative" id="b-egresos-semana">$0</strong>
+                </div>
+                <div class="balance-fold__row">
+                  <span>Este mes</span>
+                  <strong class="amount negative" id="b-egresos-mes">$0</strong>
+                </div>
+              </div>
             </div>
-            <strong class="summary-value amount negative" id="b-egresos">$0</strong>
           </article>
+        </div>
 
+        <div class="balance-secondary-grid">
           <article class="summary-card" id="balance-count-card">
             <div class="card-top">
               <small>Movimientos</small>

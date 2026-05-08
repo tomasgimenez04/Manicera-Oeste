@@ -24,6 +24,7 @@ const INVOICE_ASSET_URLS = {
 };
 
 const PAGE_SIZE = 10;
+const BALANCE_FILTERS = ['dia', 'semana', 'mes'];
 
 let productos = [];
 let movimientosInicio = [];
@@ -386,6 +387,98 @@ function toggleInventoryDropdown() {
         dropdown.classList.add('is-open');
         trigger.setAttribute('aria-expanded', 'true');
     }
+}
+
+function computeMovimientosSummary(items = []) {
+    const movimientos = ensureArray(items);
+    const ingresos = movimientos
+        .filter((item) => isIncomeType(item.tipo))
+        .reduce((sum, item) => sum + Number(item.monto || 0), 0);
+    const egresos = movimientos
+        .filter((item) => isExpenseType(item.tipo))
+        .reduce((sum, item) => sum + Number(item.monto || 0), 0);
+
+    return {
+        ingresos,
+        egresos,
+        balance: ingresos - egresos,
+        count: movimientos.length
+    };
+}
+
+function setBalanceFoldState(foldName, shouldOpen) {
+    document.querySelectorAll('[data-balance-fold]').forEach((fold) => {
+        const isTarget = fold.dataset.balanceFold === foldName;
+        const isOpen = isTarget && shouldOpen;
+        const trigger = fold.querySelector('[data-balance-fold-trigger]');
+
+        fold.classList.toggle('is-open', isOpen);
+
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    });
+}
+
+function toggleBalanceFold(foldName) {
+    const fold = document.querySelector(`[data-balance-fold="${foldName}"]`);
+
+    if (!fold) {
+        return;
+    }
+
+    const willOpen = !fold.classList.contains('is-open');
+    setBalanceFoldState(foldName, willOpen);
+}
+
+function updateBalanceOverview(summaryByFilter) {
+    const currentSummary = summaryByFilter[filtroActual] || computeMovimientosSummary([]);
+    const ingresosEl = document.getElementById('b-ingresos');
+    const egresosEl = document.getElementById('b-egresos');
+    const countEl = document.getElementById('b-count');
+    const totalEl = document.getElementById('b-total');
+    const totalStrip = document.getElementById('balance-strip');
+    const countCard = document.getElementById('balance-count-card');
+
+    if (ingresosEl) {
+        ingresosEl.textContent = fmt(currentSummary.ingresos);
+    }
+
+    if (egresosEl) {
+        egresosEl.textContent = fmt(currentSummary.egresos);
+    }
+
+    if (countEl) {
+        countEl.textContent = currentSummary.count;
+    }
+
+    if (totalEl) {
+        totalEl.textContent = (currentSummary.balance >= 0 ? '+' : '') + fmt(currentSummary.balance);
+        totalEl.className = `balance-total amount ${currentSummary.balance >= 0 ? 'positive' : 'negative'}`;
+    }
+
+    if (totalStrip) {
+        totalStrip.classList.remove('balance-strip--positive', 'balance-strip--negative');
+        totalStrip.classList.add(currentSummary.balance >= 0 ? 'balance-strip--positive' : 'balance-strip--negative');
+    }
+
+    if (countCard) {
+        countCard.classList.add('summary-card--info');
+    }
+
+    BALANCE_FILTERS.forEach((filter) => {
+        const summary = summaryByFilter[filter] || computeMovimientosSummary([]);
+        const ingresosPeriodoEl = document.getElementById(`b-ingresos-${filter}`);
+        const egresosPeriodoEl = document.getElementById(`b-egresos-${filter}`);
+
+        if (ingresosPeriodoEl) {
+            ingresosPeriodoEl.textContent = fmt(summary.ingresos);
+        }
+
+        if (egresosPeriodoEl) {
+            egresosPeriodoEl.textContent = fmt(summary.egresos);
+        }
+    });
 }
 
 function cloneTemplate(id) {
@@ -2637,9 +2730,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.querySelectorAll('[data-balance-fold-trigger]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            toggleBalanceFold(btn.dataset.balanceFoldTrigger);
+        });
+    });
+
     cargarInicio();
-    cargarProductosEnSelects();
-    renderCuentaCorrienteFormItems();
 });
 
 // Carga de datos y acciones principales
@@ -2670,7 +2767,7 @@ function showSection(id, btn) {
     closeInventoryDropdown();
 
     if (id === 'inicio') cargarInicio();
-    if (id === 'registrar' || id === 'cuenta-corriente') cargarProductosEnSelects();
+    if (id === 'cuenta-corriente') cargarProductosEnSelects();
     if (id === 'sueldos') cargarSueldos();
     if (id === 'cuenta-corriente') cargarCuentasCorrientes();
     if (id === 'balance') cargarBalance();
@@ -3271,34 +3368,7 @@ async function eliminarSueldo(id, descripcion) {
 }
 
 async function cargarInicio() {
-    try {
-        movimientosInicio = ensureArray(await fetchJson(`${API.movimientos}?filtro=dia`));
-        resetVisibleCount('inicio');
-
-        const ingresos = movimientosInicio
-            .filter((item) => isIncomeType(item.tipo))
-            .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const egresos = movimientosInicio
-            .filter((item) => isExpenseType(item.tipo))
-            .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const balance = ingresos - egresos;
-
-        document.getElementById('stat-ingresos').textContent = fmt(ingresos);
-        document.getElementById('stat-egresos').textContent = fmt(egresos);
-
-        const balanceEl = document.getElementById('stat-balance');
-        const balanceCard = document.getElementById('inicio-balance-card');
-        balanceEl.textContent = fmt(balance);
-        balanceEl.className = `summary-value amount ${balance >= 0 ? 'positive' : 'negative'}`;
-        if (balanceCard) {
-            balanceCard.classList.remove('summary-card--balance-positive', 'summary-card--balance-negative');
-            balanceCard.classList.add(balance >= 0 ? 'summary-card--balance-positive' : 'summary-card--balance-negative');
-        }
-        renderInicioTable();
-    } catch (error) {
-        console.error(error);
-        showToast(getErrorMessage(error, 'Error al cargar movimientos.'), 'error');
-    }
+    await cargarProductosEnSelects();
 }
 
 function setFiltro(filtro, btn) {
@@ -3317,33 +3387,24 @@ function setFacturacionFiltro(filtro, btn) {
 
 async function cargarBalance() {
     try {
-        movimientosBalance = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroActual}`));
+        const resultados = await Promise.all(
+            BALANCE_FILTERS.map((filter) => fetchJson(`${API.movimientos}?filtro=${filter}`))
+        );
+        const movimientosPorFiltro = {};
+
+        BALANCE_FILTERS.forEach((filter, index) => {
+            movimientosPorFiltro[filter] = ensureArray(resultados[index]);
+        });
+
+        movimientosBalance = movimientosPorFiltro[filtroActual] || [];
         resetVisibleCount('balance');
 
-        const ingresos = movimientosBalance
-            .filter((item) => isIncomeType(item.tipo))
-            .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const egresos = movimientosBalance
-            .filter((item) => isExpenseType(item.tipo))
-            .reduce((sum, item) => sum + Number(item.monto || 0), 0);
-        const balance = ingresos - egresos;
+        const summaryByFilter = {};
+        BALANCE_FILTERS.forEach((filter) => {
+            summaryByFilter[filter] = computeMovimientosSummary(movimientosPorFiltro[filter]);
+        });
 
-        document.getElementById('b-ingresos').textContent = fmt(ingresos);
-        document.getElementById('b-egresos').textContent = fmt(egresos);
-        document.getElementById('b-count').textContent = movimientosBalance.length;
-
-        const totalEl = document.getElementById('b-total');
-        const totalStrip = document.getElementById('balance-strip');
-        const countCard = document.getElementById('balance-count-card');
-        totalEl.textContent = (balance >= 0 ? '+' : '') + fmt(balance);
-        totalEl.className = `balance-total amount ${balance >= 0 ? 'positive' : 'negative'}`;
-        if (totalStrip) {
-            totalStrip.classList.remove('balance-strip--positive', 'balance-strip--negative');
-            totalStrip.classList.add(balance >= 0 ? 'balance-strip--positive' : 'balance-strip--negative');
-        }
-        if (countCard) {
-            countCard.classList.add('summary-card--info');
-        }
+        updateBalanceOverview(summaryByFilter);
         renderBalanceTable();
     } catch (error) {
         console.error(error);
