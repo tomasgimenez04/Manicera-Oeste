@@ -1178,7 +1178,6 @@ function createCuentaCorrienteRow(cuenta) {
     archiveButton.type = 'button';
     archiveButton.className = 'account-actions-menu__item account-actions-menu__item--danger account-actions-menu__item--separated';
     archiveButton.textContent = '🗄 Archivar';
-    archiveButton.disabled = Number(cuenta.pagos_realizados || 0) > 0;
     archiveButton.addEventListener('click', async () => {
         closeAllAccountActionMenus();
         await archivarCuentaCorriente(cuenta.id, cuenta.cliente);

@@ -579,11 +579,6 @@ if ($method === 'POST') {
             respond_json(['error' => 'Selecciona una cuenta corriente válida.'], 400);
         }
 
-        $payments = get_account_payment_history($conn, $cuentaId);
-        if ($payments) {
-            respond_json(['error' => 'No se puede archivar una cuenta con pagos registrados.'], 400);
-        }
-
         $stmt = $conn->prepare('
             UPDATE cuentas_corrientes
             SET estado = "archivada"

@@ -1293,7 +1293,14 @@ textarea:focus {
 
 .account-history-table th:nth-child(2),
 .account-history-table td:nth-child(2) {
-  text-align: right;
+  width: 150px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.account-history-table th:nth-child(3),
+.account-history-table td:nth-child(3) {
+  text-align: center;
 }
 
 .account-form-card {
