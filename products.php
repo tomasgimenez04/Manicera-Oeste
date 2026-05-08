@@ -91,7 +91,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    $stmt = $conn->prepare('SELECT id FROM productos WHERE nombre = ? AND activo = 1');
+    $stmt = $conn->prepare('SELECT id FROM productos WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?)) AND activo = 1');
     $stmt->bind_param('s', $nombre);
     $stmt->execute();
     $stmt->store_result();
@@ -233,7 +233,7 @@ if ($method === 'PUT') {
     $movimientosDelta = floatval($stockInfo['movimientos_delta']);
     $stockBase = $stockActual - $movimientosDelta;
 
-    $stmt = $conn->prepare('SELECT id FROM productos WHERE nombre = ? AND activo = 1 AND id <> ?');
+    $stmt = $conn->prepare('SELECT id FROM productos WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?)) AND activo = 1 AND id <> ?');
     $stmt->bind_param('si', $nombre, $id);
     $stmt->execute();
     $stmt->store_result();

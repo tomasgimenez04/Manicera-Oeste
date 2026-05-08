@@ -25,6 +25,8 @@ const INVOICE_ASSET_URLS = {
 
 const PAGE_SIZE = 10;
 const BALANCE_VISIBILITY_STORAGE_KEY = 'manicera-oeste.balance-visibility';
+const INVOICE_IMAGE_MAX_SIZE_PX = 80;
+const INVOICE_IMAGE_QUALITY = 0.65;
 const INITIAL_VISIBLE_COUNTS = {
     balance: 1
 };
@@ -296,6 +298,22 @@ function formatearNombreProducto(nombre, codigo) {
 
 function getProductoById(productoId) {
     return productos.find((item) => Number(item.id) === Number(productoId)) || null;
+}
+
+function existeProductoConNombre(nombre, productoIdExcluir = null) {
+    const nombreNormalizado = normalizarTexto(nombre);
+
+    if (!nombreNormalizado) {
+        return false;
+    }
+
+    return productos.some((item) => {
+        if (productoIdExcluir != null && Number(item.id) === Number(productoIdExcluir)) {
+            return false;
+        }
+
+        return normalizarTexto(item.nombre) === nombreNormalizado;
+    });
 }
 
 function getSueldoById(sueldoId) {
@@ -994,6 +1012,8 @@ function closeProductPicker(select) {
         parts.search.value = '';
         syncProductPicker(select);
     }
+
+    clearFloatingProductPickerMenu(parts);
 }
 
 function closeAllProductPickers(exceptSelect = null) {
@@ -1003,6 +1023,60 @@ function closeAllProductPickers(exceptSelect = null) {
         }
 
         closeProductPicker(select);
+    });
+}
+
+function isFloatingProductPicker(parts) {
+    return Boolean(parts && parts.shell.classList.contains('account-row-picker'));
+}
+
+function clearFloatingProductPickerMenu(parts) {
+    if (!parts || !parts.menu) {
+        return;
+    }
+
+    parts.menu.style.position = '';
+    parts.menu.style.top = '';
+    parts.menu.style.left = '';
+    parts.menu.style.right = '';
+    parts.menu.style.width = '';
+    parts.menu.style.minWidth = '';
+    parts.menu.style.maxWidth = '';
+    parts.menu.style.zIndex = '';
+}
+
+function positionFloatingProductPickerMenu(parts) {
+    if (!isFloatingProductPicker(parts) || !parts.trigger || !parts.menu) {
+        clearFloatingProductPickerMenu(parts);
+        return;
+    }
+
+    const rect = parts.trigger.getBoundingClientRect();
+    const desiredWidth = Math.max(rect.width, 320);
+    const maxWidth = Math.min(desiredWidth, window.innerWidth - 24);
+    const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - maxWidth - 12));
+    const estimatedHeight = Math.min(parts.menu.scrollHeight || 0, 340);
+    const fitsBelow = rect.bottom + 8 + estimatedHeight <= window.innerHeight - 12;
+    const top = fitsBelow
+        ? rect.bottom + 8
+        : Math.max(12, rect.top - estimatedHeight - 8);
+
+    parts.menu.style.position = 'fixed';
+    parts.menu.style.top = `${top}px`;
+    parts.menu.style.left = `${left}px`;
+    parts.menu.style.right = 'auto';
+    parts.menu.style.width = `${maxWidth}px`;
+    parts.menu.style.minWidth = `${maxWidth}px`;
+    parts.menu.style.maxWidth = `${window.innerWidth - 24}px`;
+    parts.menu.style.zIndex = '300';
+}
+
+function updateFloatingProductPickerMenus() {
+    document.querySelectorAll('.product-picker.is-open .product-picker__native').forEach((select) => {
+        const parts = getProductPickerParts(select);
+        if (parts) {
+            positionFloatingProductPickerMenu(parts);
+        }
     });
 }
 
@@ -1058,7 +1132,12 @@ function openProductPicker(select) {
     if (parts.search) {
         parts.search.value = '';
         syncProductPicker(select);
-        requestAnimationFrame(() => parts.search.focus());
+        requestAnimationFrame(() => {
+            positionFloatingProductPickerMenu(parts);
+            parts.search.focus();
+        });
+    } else {
+        requestAnimationFrame(() => positionFloatingProductPickerMenu(parts));
     }
 }
 
@@ -2242,6 +2321,11 @@ async function guardarCambiosProducto() {
         return;
     }
 
+    if (existeProductoConNombre(nombre, productoEnEdicionId)) {
+        showToast('Ya existe un producto con ese nombre.', 'error');
+        return;
+    }
+
     if (!codigo) {
         showToast('Escribí el código del producto.', 'error');
         return;
@@ -2301,9 +2385,12 @@ async function loadInvoiceImageData(url) {
 
         image.onload = () => {
             try {
+                const sourceWidth = image.naturalWidth || image.width || INVOICE_IMAGE_MAX_SIZE_PX;
+                const sourceHeight = image.naturalHeight || image.height || INVOICE_IMAGE_MAX_SIZE_PX;
+                const scale = Math.min(1, INVOICE_IMAGE_MAX_SIZE_PX / Math.max(sourceWidth, sourceHeight));
                 const canvas = document.createElement('canvas');
-                canvas.width = image.naturalWidth || image.width;
-                canvas.height = image.naturalHeight || image.height;
+                canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+                canvas.height = Math.max(1, Math.round(sourceHeight * scale));
                 const context = canvas.getContext('2d');
 
                 if (!context) {
@@ -2311,8 +2398,12 @@ async function loadInvoiceImageData(url) {
                     return;
                 }
 
-                context.drawImage(image, 0, 0);
-                resolve(canvas.toDataURL('image/png'));
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', INVOICE_IMAGE_QUALITY));
             } catch (error) {
                 console.error(error);
                 resolve(null);
@@ -2389,7 +2480,7 @@ function drawInvoicePdf(doc, factura, assets = {}) {
         doc.text('Laureana Ferrari 403', infoLeftX, y);
 
         if (assets.instagramLogo) {
-            doc.addImage(assets.instagramLogo, 'PNG', infoRightX, y - 3.8, iconSize, iconSize);
+            doc.addImage(assets.instagramLogo, 'JPEG', infoRightX, y - 3.8, iconSize, iconSize);
         }
 
         doc.text('maniceraoeste_manicor', contactTextX, y);
@@ -2398,7 +2489,7 @@ function drawInvoicePdf(doc, factura, assets = {}) {
         doc.text('Palomar', infoLeftX, y);
 
         if (assets.whatsappLogo) {
-            doc.addImage(assets.whatsappLogo, 'PNG', infoRightX, y - 3.8, iconSize, iconSize);
+            doc.addImage(assets.whatsappLogo, 'JPEG', infoRightX, y - 3.8, iconSize, iconSize);
         }
 
         doc.text('1121564919', contactTextX, y);
@@ -2528,7 +2619,8 @@ async function generarFactura() {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
         const factura = {
             numero: response.numero,
@@ -2770,6 +2862,9 @@ document.addEventListener('DOMContentLoaded', () => {
             closeInventoryDropdown();
         }
     });
+
+    window.addEventListener('resize', updateFloatingProductPickerMenus);
+    window.addEventListener('scroll', updateFloatingProductPickerMenus, true);
 
     document.querySelectorAll('[data-amount-toggle]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -3505,6 +3600,11 @@ async function agregarProducto() {
 
     if (!nombre) {
         showToast('Escribí el nombre del producto.', 'error');
+        return;
+    }
+
+    if (existeProductoConNombre(nombre)) {
+        showToast('Ya existe un producto con ese nombre.', 'error');
         return;
     }
 
