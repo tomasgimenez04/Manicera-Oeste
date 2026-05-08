@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260508-18">
+  <link rel="stylesheet" href="style.css?v=20260508-19">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260508-18" defer></script>
+  <script src="logic.js?v=20260508-19" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -357,7 +357,17 @@
 
         <div class="balance-strip" id="balance-strip">
           <span>Balance del período</span>
-          <strong class="balance-total amount positive" id="b-total">$0</strong>
+          <div class="balance-total-row">
+            <strong class="balance-total amount positive" id="b-total">$0</strong>
+            <button
+              class="amount-visibility-toggle is-visible"
+              type="button"
+              id="b-balance-toggle"
+              data-amount-toggle="balance"
+              aria-label="Ocultar balance"
+              aria-pressed="true"
+            ></button>
+          </div>
         </div>
       </article>
 

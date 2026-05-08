@@ -667,6 +667,16 @@ section {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 3 18 18'/%3E%3Cpath d='M10.6 10.7A3.2 3.2 0 0 0 15 15.1'/%3E%3Cpath d='M9.9 5.2A11.3 11.3 0 0 1 12 5c6.4 0 10 6 10 6a18.5 18.5 0 0 1-3.2 4.1'/%3E%3Cpath d='M6.7 6.8C4.1 8.4 2 12 2 12s3.6 6 10 6c1.3 0 2.4-.2 3.5-.6'/%3E%3C/svg%3E");
 }
 
+.balance-total-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.balance-total-row .amount-visibility-toggle {
+  margin-top: 0;
+}
+
 .balance-strip {
   display: flex;
   justify-content: space-between;
@@ -2662,6 +2672,11 @@ textarea:focus {
   .balance-strip {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .balance-total-row {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .table-shell {

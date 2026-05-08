@@ -24,6 +24,10 @@ const INVOICE_ASSET_URLS = {
 };
 
 const PAGE_SIZE = 10;
+const BALANCE_VISIBILITY_STORAGE_KEY = 'manicera-oeste.balance-visibility';
+const INITIAL_VISIBLE_COUNTS = {
+    balance: 1
+};
 
 let productos = [];
 let movimientosInicio = [];
@@ -46,11 +50,13 @@ let filtroActual = 'dia';
 let filtroFacturacionActual = 'dia';
 let balanceSummaryActual = {
     ingresos: 0,
-    egresos: 0
+    egresos: 0,
+    balance: 0
 };
 let balanceAmountsVisible = {
     ingresos: true,
-    egresos: true
+    egresos: true,
+    balance: true
 };
 let productoEnEdicionId = null;
 let facturacionSeleccionada = new Set();
@@ -65,7 +71,7 @@ let cuentasPagando = new Set();
 const invoiceImageCache = new Map();
 let visibleCounts = {
     inicio: PAGE_SIZE,
-    balance: PAGE_SIZE,
+    balance: INITIAL_VISIBLE_COUNTS.balance,
     facturacion: PAGE_SIZE,
     sueldos: PAGE_SIZE,
     cuentasCorrientes: PAGE_SIZE,
@@ -417,8 +423,39 @@ function getHiddenAmountText() {
     return '$ ****';
 }
 
+function loadBalanceVisibilitySettings() {
+    try {
+        const raw = window.localStorage.getItem(BALANCE_VISIBILITY_STORAGE_KEY);
+
+        if (!raw) {
+            return;
+        }
+
+        const parsed = JSON.parse(raw);
+
+        if (parsed && typeof parsed === 'object') {
+            ['ingresos', 'egresos', 'balance'].forEach((key) => {
+                if (typeof parsed[key] === 'boolean') {
+                    balanceAmountsVisible[key] = parsed[key];
+                }
+            });
+        }
+    } catch (error) {
+        console.warn('No se pudo leer la configuración de visibilidad del balance.', error);
+    }
+}
+
+function saveBalanceVisibilitySettings() {
+    try {
+        window.localStorage.setItem(BALANCE_VISIBILITY_STORAGE_KEY, JSON.stringify(balanceAmountsVisible));
+    } catch (error) {
+        console.warn('No se pudo guardar la configuración de visibilidad del balance.', error);
+    }
+}
+
 function renderBalanceAmountVisibility(type) {
-    const amountEl = document.getElementById(`b-${type}`);
+    const elementId = type === 'balance' ? 'b-total' : `b-${type}`;
+    const amountEl = document.getElementById(elementId);
     const toggleBtn = document.getElementById(`b-${type}-toggle`);
     const isVisible = Boolean(balanceAmountsVisible[type]);
     const value = Number(balanceSummaryActual[type] || 0);
@@ -427,7 +464,9 @@ function renderBalanceAmountVisibility(type) {
         return;
     }
 
-    amountEl.textContent = isVisible ? fmt(value) : getHiddenAmountText();
+    amountEl.textContent = isVisible
+        ? (type === 'balance' ? `${value >= 0 ? '+' : ''}${fmt(value)}` : fmt(value))
+        : getHiddenAmountText();
     toggleBtn.classList.toggle('is-visible', isVisible);
     toggleBtn.classList.toggle('is-hidden-value', !isVisible);
     toggleBtn.setAttribute('aria-label', `${isVisible ? 'Ocultar' : 'Mostrar'} ${type}`);
@@ -440,6 +479,7 @@ function toggleBalanceAmountVisibility(type) {
     }
 
     balanceAmountsVisible[type] = !balanceAmountsVisible[type];
+    saveBalanceVisibilitySettings();
     renderBalanceAmountVisibility(type);
 }
 
@@ -451,15 +491,16 @@ function updateBalanceOverview(summary) {
 
     balanceSummaryActual.ingresos = Number(summary.ingresos || 0);
     balanceSummaryActual.egresos = Number(summary.egresos || 0);
+    balanceSummaryActual.balance = Number(summary.balance || 0);
     renderBalanceAmountVisibility('ingresos');
     renderBalanceAmountVisibility('egresos');
+    renderBalanceAmountVisibility('balance');
 
     if (countEl) {
         countEl.textContent = summary.count;
     }
 
     if (totalEl) {
-        totalEl.textContent = (summary.balance >= 0 ? '+' : '') + fmt(summary.balance);
         totalEl.className = `balance-total amount ${summary.balance >= 0 ? 'positive' : 'negative'}`;
     }
 
@@ -618,10 +659,17 @@ function isCuentaCorrientePagoMovimiento(item) {
 }
 
 function resetVisibleCount(key) {
-    visibleCounts[key] = PAGE_SIZE;
+    visibleCounts[key] = Object.prototype.hasOwnProperty.call(INITIAL_VISIBLE_COUNTS, key)
+        ? INITIAL_VISIBLE_COUNTS[key]
+        : PAGE_SIZE;
 }
 
 function increaseVisibleCount(key) {
+    if (key === 'balance' && visibleCounts[key] < PAGE_SIZE) {
+        visibleCounts[key] += PAGE_SIZE - visibleCounts[key];
+        return;
+    }
+
     visibleCounts[key] += PAGE_SIZE;
 }
 
@@ -2509,6 +2557,7 @@ async function generarFactura() {
 // Inicializacion y eventos de interfaz
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
+    loadBalanceVisibilitySettings();
 
     ['v-producto', 'c-producto'].forEach((id) => {
         const select = document.getElementById(id);
