@@ -40,6 +40,7 @@
   --green-light: var(--success-soft);
   --green-dark: #047857;
   --blue: #2563eb;
+  --panel-border: rgba(81, 73, 73, 0.564);
 }
 
 html {
@@ -280,6 +281,10 @@ section {
   gap: 24px;
 }
 
+.section > .dashboard-grid {
+  margin-bottom: 32px;
+}
+
 .dashboard-grid--two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -337,7 +342,7 @@ section {
 .form-card {
   background: var(--surface);
   border-radius: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--panel-border);
   box-shadow: var(--shadow);
 }
 
@@ -568,7 +573,7 @@ section {
   min-height: 0;
   padding: 22px;
   border-radius: 18px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--panel-border);
   background: linear-gradient(180deg, rgba(249, 250, 251, 0.92), rgba(255, 255, 255, 1));
 }
 
@@ -677,6 +682,10 @@ section {
   margin-top: 0;
 }
 
+#balance > .panel-card {
+  margin-bottom: 32px;
+}
+
 .balance-strip {
   display: flex;
   justify-content: space-between;
@@ -686,7 +695,7 @@ section {
   padding: 18px 20px;
   border-radius: 18px;
   background: linear-gradient(135deg, rgba(31, 41, 55, 0.04), rgba(243, 244, 246, 0.95));
-  border: 1px solid var(--border);
+  border: 1px solid var(--panel-border);
 }
 
 .balance-strip--positive {
@@ -1234,13 +1243,14 @@ textarea:focus {
 
 .salary-table th:last-child,
 .salary-table td:last-child {
-  text-align: left;
+  text-align: center;
 }
 
 .salary-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
 }
 
 .salary-edit-btn {
@@ -1691,7 +1701,7 @@ textarea:focus {
 .account-form-items-shell {
   margin-top: 0;
   padding: 10px 12px 12px;
-  border: 1px solid rgba(195, 203, 214, 0.74);
+  border: 1px solid rgba(17, 24, 39, 0.14);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(252, 252, 253, 0.98), rgba(247, 249, 252, 0.98));
   overflow: hidden;
@@ -1880,10 +1890,18 @@ textarea:focus {
 .account-form-items-shell--editor {
   padding: 0;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .account-form-items-table--editor {
   min-width: 980px;
+}
+
+.account-form-items-table--editor,
+.account-form-items-table--editor tbody,
+.account-form-items-table--editor tr,
+.account-form-items-table--editor td {
+  overflow: visible;
 }
 
 .account-form-items-table--editor thead th {
@@ -1950,16 +1968,16 @@ textarea:focus {
 }
 
 .account-row-picker.product-picker {
-  z-index: 2;
+  z-index: 6;
 }
 
 .account-row-picker .product-picker__menu {
-  position: static;
-  left: auto;
-  right: auto;
-  top: auto;
-  margin-top: 8px;
-  min-width: 100%;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin-top: 0;
+  min-width: max(100%, 320px);
 }
 
 .account-row-picker .product-picker__search {
@@ -2085,15 +2103,24 @@ textarea:focus {
 .account-table th:last-child,
 .account-table td:last-child {
   width: 1%;
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
 }
 
 .account-actions-menu {
   position: relative;
   display: inline-flex;
-  justify-content: flex-end;
+  justify-content: center;
   z-index: 1;
+}
+
+.account-table th:nth-child(7),
+.account-table td:nth-child(7) {
+  text-align: center;
+}
+
+.account-table th:nth-child(7) {
+  padding-left: 24px;
 }
 
 .account-actions-menu.is-open {
