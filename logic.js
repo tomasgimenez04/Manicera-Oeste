@@ -24,7 +24,6 @@ const INVOICE_ASSET_URLS = {
 };
 
 const PAGE_SIZE = 10;
-const BALANCE_FILTERS = ['dia', 'semana', 'mes'];
 
 let productos = [];
 let movimientosInicio = [];
@@ -45,6 +44,14 @@ let resumenCuentasCorrientes = {
 let stockActual = [];
 let filtroActual = 'dia';
 let filtroFacturacionActual = 'dia';
+let balanceSummaryActual = {
+    ingresos: 0,
+    egresos: 0
+};
+let balanceAmountsVisible = {
+    ingresos: true,
+    egresos: true
+};
 let productoEnEdicionId = null;
 let facturacionSeleccionada = new Set();
 let facturacionIdsFacturados = new Set();
@@ -406,79 +413,64 @@ function computeMovimientosSummary(items = []) {
     };
 }
 
-function setBalanceFoldState(foldName, shouldOpen) {
-    document.querySelectorAll('[data-balance-fold]').forEach((fold) => {
-        const isTarget = fold.dataset.balanceFold === foldName;
-        const isOpen = isTarget && shouldOpen;
-        const trigger = fold.querySelector('[data-balance-fold-trigger]');
-
-        fold.classList.toggle('is-open', isOpen);
-
-        if (trigger) {
-            trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        }
-    });
+function getHiddenAmountText() {
+    return '$ ****';
 }
 
-function toggleBalanceFold(foldName) {
-    const fold = document.querySelector(`[data-balance-fold="${foldName}"]`);
+function renderBalanceAmountVisibility(type) {
+    const amountEl = document.getElementById(`b-${type}`);
+    const toggleBtn = document.getElementById(`b-${type}-toggle`);
+    const isVisible = Boolean(balanceAmountsVisible[type]);
+    const value = Number(balanceSummaryActual[type] || 0);
 
-    if (!fold) {
+    if (!amountEl || !toggleBtn) {
         return;
     }
 
-    const willOpen = !fold.classList.contains('is-open');
-    setBalanceFoldState(foldName, willOpen);
+    amountEl.textContent = isVisible ? fmt(value) : getHiddenAmountText();
+    toggleBtn.classList.toggle('is-visible', isVisible);
+    toggleBtn.classList.toggle('is-hidden-value', !isVisible);
+    toggleBtn.setAttribute('aria-label', `${isVisible ? 'Ocultar' : 'Mostrar'} ${type}`);
+    toggleBtn.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
 }
 
-function updateBalanceOverview(summaryByFilter) {
-    const currentSummary = summaryByFilter[filtroActual] || computeMovimientosSummary([]);
-    const ingresosEl = document.getElementById('b-ingresos');
-    const egresosEl = document.getElementById('b-egresos');
+function toggleBalanceAmountVisibility(type) {
+    if (!(type in balanceAmountsVisible)) {
+        return;
+    }
+
+    balanceAmountsVisible[type] = !balanceAmountsVisible[type];
+    renderBalanceAmountVisibility(type);
+}
+
+function updateBalanceOverview(summary) {
     const countEl = document.getElementById('b-count');
     const totalEl = document.getElementById('b-total');
     const totalStrip = document.getElementById('balance-strip');
     const countCard = document.getElementById('balance-count-card');
 
-    if (ingresosEl) {
-        ingresosEl.textContent = fmt(currentSummary.ingresos);
-    }
-
-    if (egresosEl) {
-        egresosEl.textContent = fmt(currentSummary.egresos);
-    }
+    balanceSummaryActual.ingresos = Number(summary.ingresos || 0);
+    balanceSummaryActual.egresos = Number(summary.egresos || 0);
+    renderBalanceAmountVisibility('ingresos');
+    renderBalanceAmountVisibility('egresos');
 
     if (countEl) {
-        countEl.textContent = currentSummary.count;
+        countEl.textContent = summary.count;
     }
 
     if (totalEl) {
-        totalEl.textContent = (currentSummary.balance >= 0 ? '+' : '') + fmt(currentSummary.balance);
-        totalEl.className = `balance-total amount ${currentSummary.balance >= 0 ? 'positive' : 'negative'}`;
+        totalEl.textContent = (summary.balance >= 0 ? '+' : '') + fmt(summary.balance);
+        totalEl.className = `balance-total amount ${summary.balance >= 0 ? 'positive' : 'negative'}`;
     }
 
     if (totalStrip) {
         totalStrip.classList.remove('balance-strip--positive', 'balance-strip--negative');
-        totalStrip.classList.add(currentSummary.balance >= 0 ? 'balance-strip--positive' : 'balance-strip--negative');
+        totalStrip.classList.add(summary.balance >= 0 ? 'balance-strip--positive' : 'balance-strip--negative');
     }
 
     if (countCard) {
         countCard.classList.add('summary-card--info');
     }
-
-    BALANCE_FILTERS.forEach((filter) => {
-        const summary = summaryByFilter[filter] || computeMovimientosSummary([]);
-        const ingresosPeriodoEl = document.getElementById(`b-ingresos-${filter}`);
-        const egresosPeriodoEl = document.getElementById(`b-egresos-${filter}`);
-
-        if (ingresosPeriodoEl) {
-            ingresosPeriodoEl.textContent = fmt(summary.ingresos);
-        }
-
-        if (egresosPeriodoEl) {
-            egresosPeriodoEl.textContent = fmt(summary.egresos);
-        }
-    });
 }
 
 function cloneTemplate(id) {
@@ -2730,9 +2722,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.querySelectorAll('[data-balance-fold-trigger]').forEach((btn) => {
+    document.querySelectorAll('[data-amount-toggle]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            toggleBalanceFold(btn.dataset.balanceFoldTrigger);
+            toggleBalanceAmountVisibility(btn.dataset.amountToggle);
         });
     });
 
@@ -3387,24 +3379,10 @@ function setFacturacionFiltro(filtro, btn) {
 
 async function cargarBalance() {
     try {
-        const resultados = await Promise.all(
-            BALANCE_FILTERS.map((filter) => fetchJson(`${API.movimientos}?filtro=${filter}`))
-        );
-        const movimientosPorFiltro = {};
-
-        BALANCE_FILTERS.forEach((filter, index) => {
-            movimientosPorFiltro[filter] = ensureArray(resultados[index]);
-        });
-
-        movimientosBalance = movimientosPorFiltro[filtroActual] || [];
+        movimientosBalance = ensureArray(await fetchJson(`${API.movimientos}?filtro=${filtroActual}`));
         resetVisibleCount('balance');
 
-        const summaryByFilter = {};
-        BALANCE_FILTERS.forEach((filter) => {
-            summaryByFilter[filter] = computeMovimientosSummary(movimientosPorFiltro[filter]);
-        });
-
-        updateBalanceOverview(summaryByFilter);
+        updateBalanceOverview(computeMovimientosSummary(movimientosBalance));
         renderBalanceTable();
     } catch (error) {
         console.error(error);
