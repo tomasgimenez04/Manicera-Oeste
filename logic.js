@@ -44,7 +44,6 @@ let resumenSueldos = {
 };
 let resumenCuentasCorrientes = {
     pendientes: 0,
-    parciales: 0,
     cobrado_mes: 0
 };
 let stockActual = [];
@@ -1721,15 +1720,13 @@ function renderSueldosTable() {
 
 function renderCuentaCorrienteSummary() {
     const pendientes = document.getElementById('cc-resumen-pendientes');
-    const parciales = document.getElementById('cc-resumen-parciales');
     const cobrado = document.getElementById('cc-resumen-cobrado');
 
-    if (!pendientes || !parciales || !cobrado) {
+    if (!pendientes || !cobrado) {
         return;
     }
 
     pendientes.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.pendientes || 0);
-    parciales.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.parciales || 0);
     cobrado.textContent = fmtCurrencyAmount(resumenCuentasCorrientes.cobrado_mes || 0);
 }
 
@@ -3100,7 +3097,6 @@ async function cargarCuentasCorrientes() {
         cuentasCorrientes = ensureArray(payload.items);
         resumenCuentasCorrientes = {
             pendientes: Number(payload.resumen && payload.resumen.pendientes) || 0,
-            parciales: Number(payload.resumen && payload.resumen.parciales) || 0,
             cobrado_mes: Number(payload.resumen && payload.resumen.cobrado_mes) || 0
         };
 

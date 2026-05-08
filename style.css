@@ -2060,7 +2060,17 @@ textarea:focus {
   gap: 18px;
 }
 
+.account-summary-grid--two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
 .account-summary-grid--three .account-summary-item {
+  min-height: 132px;
+}
+
+.account-summary-grid--two .account-summary-item {
   min-height: 132px;
 }
 

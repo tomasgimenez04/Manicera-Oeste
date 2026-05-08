@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=20260508-25">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260508-21" defer></script>
+  <script src="logic.js?v=20260508-22" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -505,14 +505,10 @@
             <p>Control rápido del saldo pendiente y del dinero cobrado este mes.</p>
           </div>
 
-          <div class="account-summary-grid account-summary-grid--three">
+          <div class="account-summary-grid account-summary-grid--two">
             <div class="account-summary-item account-summary-item--danger">
               <span class="account-summary-label">Pendientes de cobro</span>
               <strong class="account-summary-value account-summary-value--danger" id="cc-resumen-pendientes">$0,00</strong>
-            </div>
-            <div class="account-summary-item account-summary-item--warning">
-              <span class="account-summary-label">Parcialmente pagadas</span>
-              <strong class="account-summary-value account-summary-value--warning" id="cc-resumen-parciales">$0,00</strong>
             </div>
             <div class="account-summary-item account-summary-item--success">
               <span class="account-summary-label">Cobrado en el mes</span>
