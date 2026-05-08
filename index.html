@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260508-4">
+  <link rel="stylesheet" href="style.css?v=20260508-6">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260508-4" defer></script>
+  <script src="logic.js?v=20260508-6" defer></script>
 </head>
 <body>
   <main class="app-container">
@@ -28,12 +28,25 @@
     <nav class="nav-tabs" aria-label="Secciones principales">
       <button class="nav-btn active" type="button" data-section="inicio">Inicio</button>
       <button class="nav-btn" type="button" data-section="registrar">Registrar</button>
-      <button class="nav-btn" type="button" data-section="sueldos">Sueldos</button>
       <button class="nav-btn" type="button" data-section="balance">Balance</button>
       <button class="nav-btn" type="button" data-section="facturacion">Facturación</button>
       <button class="nav-btn" type="button" data-section="cuenta-corriente">Cuenta corriente</button>
-      <button class="nav-btn" type="button" data-section="stock">Stock</button>
-      <button class="nav-btn" type="button" data-section="productos">Productos</button>
+      <button class="nav-btn" type="button" data-section="sueldos">Sueldos</button>
+      <div class="nav-dropdown" id="nav-inventario">
+        <button
+          class="nav-btn nav-dropdown__trigger"
+          type="button"
+          id="nav-inventario-trigger"
+          aria-expanded="false"
+          aria-controls="nav-inventario-menu"
+        >
+          Inventario <span class="nav-dropdown__caret">▾</span>
+        </button>
+        <div class="nav-dropdown__menu" id="nav-inventario-menu" role="menu" aria-label="Secciones de inventario">
+          <button class="nav-dropdown__item" type="button" data-section="stock" role="menuitem">Stock</button>
+          <button class="nav-dropdown__item" type="button" data-section="productos" role="menuitem">Productos</button>
+        </div>
+      </div>
     </nav>
 
     <!-- Secciones de la aplicación -->

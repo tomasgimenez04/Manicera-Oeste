@@ -359,6 +359,35 @@ function getSelectedFacturacionItems() {
     return ventasFacturacion.filter((item) => facturacionSeleccionada.has(getFacturacionItemId(item)));
 }
 
+function closeInventoryDropdown() {
+    const dropdown = document.getElementById('nav-inventario');
+    const trigger = document.getElementById('nav-inventario-trigger');
+
+    if (!dropdown || !trigger) {
+        return;
+    }
+
+    dropdown.classList.remove('is-open');
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function toggleInventoryDropdown() {
+    const dropdown = document.getElementById('nav-inventario');
+    const trigger = document.getElementById('nav-inventario-trigger');
+
+    if (!dropdown || !trigger) {
+        return;
+    }
+
+    const willOpen = !dropdown.classList.contains('is-open');
+    closeInventoryDropdown();
+
+    if (willOpen) {
+        dropdown.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+    }
+}
+
 function cloneTemplate(id) {
     const template = document.getElementById(id);
 
@@ -2289,11 +2318,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.querySelectorAll('.nav-btn').forEach((btn) => {
+    document.querySelectorAll('.nav-btn[data-section], .nav-dropdown__item[data-section]').forEach((btn) => {
         btn.addEventListener('click', () => {
             showSection(btn.dataset.section, btn);
         });
     });
+
+    const inventoryTrigger = document.getElementById('nav-inventario-trigger');
+    if (inventoryTrigger) {
+        inventoryTrigger.addEventListener('click', () => {
+            toggleInventoryDropdown();
+        });
+    }
 
     document.querySelectorAll('.balance-filter-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -2460,6 +2496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.key === 'Escape') {
             closeAllProductPickers();
             closeAllAccountActionMenus();
+            closeInventoryDropdown();
             closeProductModal();
             closeSalaryHistoryModal();
             closeSalaryEditModal();
@@ -2471,6 +2508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         const picker = event.target.closest('[data-product-picker]');
         const accountMenu = event.target.closest('.account-actions-menu');
+        const inventoryMenu = event.target.closest('.nav-dropdown');
 
         if (!picker) {
             closeAllProductPickers();
@@ -2478,6 +2516,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!accountMenu) {
             closeAllAccountActionMenus();
+        }
+
+        if (!inventoryMenu) {
+            closeInventoryDropdown();
         }
     });
 
@@ -2489,7 +2531,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Carga de datos y acciones principales
 function showSection(id, btn) {
     document.querySelectorAll('.section').forEach((section) => section.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach((navBtn) => navBtn.classList.remove('active'));
+    document.querySelectorAll('.nav-btn, .nav-dropdown__item').forEach((navBtn) => navBtn.classList.remove('active'));
+    document.querySelectorAll('.nav-dropdown').forEach((dropdown) => dropdown.classList.remove('is-active'));
 
     const section = document.getElementById(id);
     if (!section) {
@@ -2498,7 +2541,19 @@ function showSection(id, btn) {
     }
 
     section.classList.add('active');
-    btn.classList.add('active');
+    const targetBtn = btn || document.querySelector(`.nav-btn[data-section="${id}"], .nav-dropdown__item[data-section="${id}"]`);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
+
+    if (id === 'stock' || id === 'productos') {
+        const inventoryDropdown = document.getElementById('nav-inventario');
+        if (inventoryDropdown) {
+            inventoryDropdown.classList.add('is-active');
+        }
+    }
+
+    closeInventoryDropdown();
 
     if (id === 'inicio') cargarInicio();
     if (id === 'registrar' || id === 'cuenta-corriente') cargarProductosEnSelects();
