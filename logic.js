@@ -753,6 +753,47 @@ function createOption(producto) {
     return option;
 }
 
+function createProductPickerShell(select, placeholder = 'Selecciona un producto') {
+    const shell = document.createElement('div');
+    const trigger = document.createElement('button');
+    const triggerValue = document.createElement('span');
+    const triggerChevron = document.createElement('span');
+    const menu = document.createElement('div');
+    const options = document.createElement('div');
+
+    shell.className = 'product-picker';
+    shell.dataset.productPicker = '';
+
+    select.classList.add('product-picker__native');
+
+    trigger.type = 'button';
+    trigger.className = 'product-picker__trigger';
+    trigger.dataset.productPickerTrigger = '';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    triggerValue.className = 'product-picker__value';
+    triggerValue.dataset.productPickerValue = '';
+    triggerValue.textContent = placeholder;
+
+    triggerChevron.className = 'product-picker__chevron';
+    triggerChevron.setAttribute('aria-hidden', 'true');
+    triggerChevron.textContent = '▾';
+
+    menu.className = 'product-picker__menu is-hidden';
+    menu.dataset.productPickerMenu = '';
+
+    options.className = 'product-picker__options';
+    options.dataset.productPickerOptions = '';
+    options.setAttribute('role', 'listbox');
+
+    trigger.append(triggerValue, triggerChevron);
+    menu.appendChild(options);
+    shell.append(select, trigger, menu);
+
+    return shell;
+}
+
 function getProductPickerParts(select) {
     const shell = select ? select.closest('[data-product-picker]') : null;
 
@@ -765,12 +806,48 @@ function getProductPickerParts(select) {
         trigger: shell.querySelector('[data-product-picker-trigger]'),
         value: shell.querySelector('[data-product-picker-value]'),
         menu: shell.querySelector('[data-product-picker-menu]'),
-        options: shell.querySelector('[data-product-picker-options]')
+        options: shell.querySelector('[data-product-picker-options]'),
+        search: shell.querySelector('[data-product-picker-search]'),
+        empty: shell.querySelector('[data-product-picker-empty]')
+    };
+}
+
+function ensureProductPickerMenuEnhancements(parts) {
+    if (!parts || !parts.menu || !parts.options) {
+        return getProductPickerParts(parts && parts.shell ? parts.shell.querySelector('.product-picker__native') : null);
+    }
+
+    let search = parts.menu.querySelector('[data-product-picker-search]');
+    let empty = parts.menu.querySelector('[data-product-picker-empty]');
+
+    if (!search) {
+        search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'product-picker__search';
+        search.placeholder = 'Buscar producto...';
+        search.autocomplete = 'off';
+        search.spellcheck = false;
+        search.dataset.productPickerSearch = '';
+        parts.menu.insertBefore(search, parts.options);
+    }
+
+    if (!empty) {
+        empty = document.createElement('p');
+        empty.className = 'product-picker__empty is-hidden';
+        empty.textContent = 'Sin coincidencias.';
+        empty.dataset.productPickerEmpty = '';
+        parts.menu.appendChild(empty);
+    }
+
+    return {
+        ...parts,
+        search,
+        empty
     };
 }
 
 function closeProductPicker(select) {
-    const parts = getProductPickerParts(select);
+    const parts = ensureProductPickerMenuEnhancements(getProductPickerParts(select));
 
     if (!parts) {
         return;
@@ -779,6 +856,11 @@ function closeProductPicker(select) {
     parts.shell.classList.remove('is-open');
     parts.menu.classList.add('is-hidden');
     parts.trigger.setAttribute('aria-expanded', 'false');
+
+    if (parts.search && parts.search.value !== '') {
+        parts.search.value = '';
+        syncProductPicker(select);
+    }
 }
 
 function closeAllProductPickers(exceptSelect = null) {
@@ -829,7 +911,7 @@ function toggleAccountActionMenu(menu) {
 }
 
 function openProductPicker(select) {
-    const parts = getProductPickerParts(select);
+    const parts = ensureProductPickerMenuEnhancements(getProductPickerParts(select));
 
     if (!parts) {
         return;
@@ -839,6 +921,12 @@ function openProductPicker(select) {
     parts.shell.classList.add('is-open');
     parts.menu.classList.remove('is-hidden');
     parts.trigger.setAttribute('aria-expanded', 'true');
+
+    if (parts.search) {
+        parts.search.value = '';
+        syncProductPicker(select);
+        requestAnimationFrame(() => parts.search.focus());
+    }
 }
 
 function toggleProductPicker(select) {
@@ -857,7 +945,7 @@ function toggleProductPicker(select) {
 }
 
 function syncProductPicker(select) {
-    const parts = getProductPickerParts(select);
+    const parts = ensureProductPickerMenuEnhancements(getProductPickerParts(select));
 
     if (!parts) {
         return;
@@ -865,24 +953,30 @@ function syncProductPicker(select) {
 
     const selectedOption = select.options[select.selectedIndex] || select.options[0] || null;
     parts.value.textContent = selectedOption ? selectedOption.textContent : 'Selecciona un producto';
+    const searchText = normalizarTexto(parts.search ? parts.search.value : '');
 
-    const optionButtons = Array.from(select.options).map((option) => {
+    const optionButtons = Array.from(select.options).filter((option) => {
+        if (option.value === '') {
+            return false;
+        }
+
+        if (!searchText) {
+            return true;
+        }
+
+        return normalizarTexto(option.textContent).includes(searchText);
+    }).map((option) => {
         const button = document.createElement('button');
         const isSelected = option.value === select.value;
 
         button.type = 'button';
         button.className = 'product-picker__option';
         button.textContent = option.textContent;
-        button.disabled = option.value === '';
         button.classList.toggle('is-selected', isSelected);
         button.setAttribute('role', 'option');
         button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
 
         button.addEventListener('click', () => {
-            if (option.value === '') {
-                return;
-            }
-
             select.value = option.value;
             syncProductPicker(select);
             closeProductPicker(select);
@@ -893,10 +987,13 @@ function syncProductPicker(select) {
     });
 
     replaceChildren(parts.options, optionButtons);
+    if (parts.empty) {
+        parts.empty.classList.toggle('is-hidden', optionButtons.length > 0);
+    }
 }
 
 function initProductPicker(select) {
-    const parts = getProductPickerParts(select);
+    const parts = ensureProductPickerMenuEnhancements(getProductPickerParts(select));
 
     if (!parts || parts.shell.dataset.enhanced === 'true') {
         return;
@@ -906,6 +1003,18 @@ function initProductPicker(select) {
     parts.trigger.addEventListener('click', () => {
         toggleProductPicker(select);
     });
+    if (parts.search) {
+        parts.search.addEventListener('input', () => {
+            syncProductPicker(select);
+        });
+        parts.search.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeProductPicker(select);
+                parts.trigger.focus();
+            }
+        });
+    }
     syncProductPicker(select);
 }
 
@@ -1445,11 +1554,13 @@ function renderCuentaCorrienteFormItems() {
         const subtotal = document.createElement('td');
         const quitar = document.createElement('td');
         const select = document.createElement('select');
+        const pickerShell = createProductPickerShell(select);
         const cantidadInput = document.createElement('input');
         const precioInput = document.createElement('input');
         const removeButton = document.createElement('button');
 
-        select.className = 'account-row-select';
+        pickerShell.classList.add('account-row-picker');
+        select.classList.add('account-row-select');
         const placeholderOption = document.createElement('option');
         placeholderOption.value = '';
         placeholderOption.textContent = 'Selecciona un producto';
@@ -1513,7 +1624,7 @@ function renderCuentaCorrienteFormItems() {
 
         syncQuantityInput();
 
-        producto.appendChild(select);
+        producto.appendChild(pickerShell);
         cantidad.appendChild(cantidadInput);
         precio.appendChild(precioInput);
         subtotal.textContent = fmtCurrencyAmount(item.subtotal);
@@ -1547,6 +1658,9 @@ function renderCuentaCorrienteFormItems() {
     addRow.appendChild(addCell);
 
     replaceChildren(tbody, [...rows, addRow]);
+    tbody.querySelectorAll('.product-picker__native').forEach((select) => {
+        initProductPicker(select);
+    });
     actualizarCuentaCorrienteFormState();
 }
 
@@ -3173,8 +3287,13 @@ async function cargarInicio() {
         document.getElementById('stat-egresos').textContent = fmt(egresos);
 
         const balanceEl = document.getElementById('stat-balance');
+        const balanceCard = document.getElementById('inicio-balance-card');
         balanceEl.textContent = fmt(balance);
         balanceEl.className = `summary-value amount ${balance >= 0 ? 'positive' : 'negative'}`;
+        if (balanceCard) {
+            balanceCard.classList.remove('summary-card--balance-positive', 'summary-card--balance-negative');
+            balanceCard.classList.add(balance >= 0 ? 'summary-card--balance-positive' : 'summary-card--balance-negative');
+        }
         renderInicioTable();
     } catch (error) {
         console.error(error);
@@ -3214,8 +3333,17 @@ async function cargarBalance() {
         document.getElementById('b-count').textContent = movimientosBalance.length;
 
         const totalEl = document.getElementById('b-total');
+        const totalStrip = document.getElementById('balance-strip');
+        const countCard = document.getElementById('balance-count-card');
         totalEl.textContent = (balance >= 0 ? '+' : '') + fmt(balance);
         totalEl.className = `balance-total amount ${balance >= 0 ? 'positive' : 'negative'}`;
+        if (totalStrip) {
+            totalStrip.classList.remove('balance-strip--positive', 'balance-strip--negative');
+            totalStrip.classList.add(balance >= 0 ? 'balance-strip--positive' : 'balance-strip--negative');
+        }
+        if (countCard) {
+            countCard.classList.add('summary-card--info');
+        }
         renderBalanceTable();
     } catch (error) {
         console.error(error);

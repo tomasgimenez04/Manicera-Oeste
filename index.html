@@ -10,15 +10,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260508-6">
+  <link rel="stylesheet" href="style.css?v=20260508-14">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="logic.js?v=20260508-6" defer></script>
+  <script src="logic.js?v=20260508-13" defer></script>
 </head>
 <body>
   <main class="app-container">
     <header class="app-header">
       <div class="app-header__copy">
-        <h1>Manicera Oeste</h1>
+        <h1 class="app-header__brand">
+          <span class="sr-only">Manicera Oeste</span>
+          <img src="Imagenes/logo-header-actual.png" alt="" class="app-header__logo">
+        </h1>
         <p>Panel de control y movimientos diarios</p>
       </div>
       <span class="current-date" id="fecha-hoy"></span>
@@ -68,7 +71,7 @@
           <strong class="summary-value amount negative" id="stat-egresos">$0</strong>
         </article>
 
-        <article class="summary-card">
+        <article class="summary-card" id="inicio-balance-card">
           <div class="card-top">
             <small>Balance hoy</small>
             <span class="card-icon card-icon--balance">=</span>
@@ -378,7 +381,7 @@
             <strong class="summary-value amount negative" id="b-egresos">$0</strong>
           </article>
 
-          <article class="summary-card">
+          <article class="summary-card" id="balance-count-card">
             <div class="card-top">
               <small>Movimientos</small>
               <span class="card-icon card-icon--balance">#</span>
@@ -387,7 +390,7 @@
           </article>
         </div>
 
-        <div class="balance-strip">
+        <div class="balance-strip" id="balance-strip">
           <span>Balance del período</span>
           <strong class="balance-total amount positive" id="b-total">$0</strong>
         </div>
