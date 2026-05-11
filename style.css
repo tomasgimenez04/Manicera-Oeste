@@ -1258,6 +1258,27 @@ textarea:focus {
   border-color: var(--border-strong);
 }
 
+.salary-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.salary-date--alert {
+  color: var(--red-dark);
+}
+
+.salary-alert-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 4px var(--red-light);
+}
+
 .salary-status {
   display: inline-flex;
   align-items: center;
@@ -1277,6 +1298,11 @@ textarea:focus {
 .salary-status--paid {
   background: var(--green-light);
   color: var(--green-dark);
+}
+
+.salary-status--finished {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .salary-pay-btn:disabled {
@@ -2367,7 +2393,7 @@ textarea:focus {
 
 .product-row {
   padding: 24px 18px;
-  border-bottom: 1px solid #cfd8e3;
+  border-bottom: 2px solid #b8c4d2;
 }
 
 .product-copy {

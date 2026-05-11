@@ -1409,7 +1409,7 @@ function createSueldoRow(item) {
     const descripcion = row.querySelector('[data-field="descripcion"]');
     const monto = row.querySelector('[data-field="monto"]');
     const tipo = row.querySelector('[data-field="tipo"]');
-    const proximo = row.querySelector('[data-field="proximo"]');
+    const fechaPago = row.querySelector('[data-field="fecha-pago"]');
     const estado = row.querySelector('[data-field="estado"]');
     const acciones = row.querySelector('[data-field="acciones"]');
     const statusBadge = document.createElement('span');
@@ -1419,24 +1419,43 @@ function createSueldoRow(item) {
     const historyButton = document.createElement('button');
     const deleteButton = document.createElement('button');
     const isProcessingPay = sueldosPagando.has(Number(item.id));
-    const isPaid = item.estado_periodo === 'pagado';
+    const pendingPayments = Number(item.pagos_pendientes || 0);
+    const isPending = pendingPayments > 0;
+    const isFinished = item.estado_periodo === 'finalizado';
+    const paymentDateText = item.fecha_pago || item.proximo_pago || '-';
+    const dateWrap = document.createElement('span');
+    const dateText = document.createElement('span');
 
     descripcion.textContent = item.descripcion;
     monto.textContent = fmtCurrencyAmount(item.monto);
     monto.className = 'amount';
     tipo.textContent = formatSalaryType(item.tipo_pago);
-    proximo.textContent = item.proximo_pago || '-';
+    dateWrap.className = `salary-date${isPending ? ' salary-date--alert' : ''}`;
+    dateText.textContent = paymentDateText;
 
-    statusBadge.className = `salary-status salary-status--${isPaid ? 'paid' : 'pending'}`;
-    statusBadge.textContent = isPaid ? 'Pagado' : 'Pendiente';
+    if (isPending) {
+        const alertDot = document.createElement('span');
+        alertDot.className = 'salary-alert-dot';
+        alertDot.title = 'Pago pendiente';
+        alertDot.setAttribute('aria-label', 'Pago pendiente');
+        dateWrap.append(alertDot);
+    }
+
+    dateWrap.append(dateText);
+    replaceChildren(fechaPago, [dateWrap]);
+
+    statusBadge.className = `salary-status salary-status--${isPending ? 'pending' : (isFinished ? 'finished' : 'paid')}`;
+    statusBadge.textContent = isPending
+        ? (pendingPayments > 1 ? `Pendientes: ${pendingPayments}` : 'Pendiente')
+        : (isFinished ? 'Finalizado' : 'Al día');
     replaceChildren(estado, [statusBadge]);
 
     actionsWrap.className = 'salary-actions';
 
     payButton.type = 'button';
     payButton.className = 'btn btn-primary btn-sm salary-pay-btn';
-    payButton.textContent = isProcessingPay ? 'Pagando...' : 'Pagar';
-    payButton.disabled = isPaid || isProcessingPay;
+    payButton.textContent = isProcessingPay ? 'Pagando...' : (pendingPayments > 1 ? `Pagar (${pendingPayments})` : 'Pagar');
+    payButton.disabled = !isPending || isProcessingPay;
     payButton.addEventListener('click', async () => {
         await pagarSueldo(item.id);
     });
@@ -3320,7 +3339,7 @@ async function registrarSueldo() {
     }
 
     if (!fecha_inicio) {
-        showToast('Selecciona la fecha de inicio.', 'error');
+        showToast('Selecciona la fecha de pago.', 'error');
         return;
     }
 
@@ -3398,7 +3417,7 @@ async function guardarCambiosSueldo() {
     }
 
     if (!fecha_inicio) {
-        showToast('Selecciona la fecha de inicio.', 'error');
+        showToast('Selecciona la fecha de pago.', 'error');
         return;
     }
 

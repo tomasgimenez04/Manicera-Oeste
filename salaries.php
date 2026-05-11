@@ -73,147 +73,82 @@ function add_months_keep_day(DateTimeImmutable $date, $months) {
     );
 }
 
-function move_salary_interval(DateTimeImmutable $date, $tipo, $steps) {
-    if ($steps === 0) {
-        return $date;
-    }
+function get_salary_payment_date(DateTimeImmutable $start, $tipo, $index) {
+    $index = max(0, intval($index));
 
     switch ($tipo) {
         case 'diario':
-            return $date->modify(($steps >= 0 ? '+' : '') . $steps . ' day');
+            return $start->modify('+' . $index . ' day');
         case 'semanal':
-            $days = $steps * 7;
-            return $date->modify(($days >= 0 ? '+' : '') . $days . ' day');
+            return $start->modify('+' . ($index * 7) . ' day');
         case 'quincenal':
-            $days = $steps * 15;
-            return $date->modify(($days >= 0 ? '+' : '') . $days . ' day');
+            return $start->modify('+' . ($index * 15) . ' day');
         case 'mensual':
-            return add_months_keep_day($date, $steps);
+            return add_months_keep_day($start, $index);
         case 'unico':
         default:
-            return null;
+            return $index === 0 ? $start : null;
     }
 }
 
-function add_salary_interval(DateTimeImmutable $date, $tipo) {
-    return move_salary_interval($date, $tipo, 1);
-}
-
-function normalize_period_bounds(?DateTimeImmutable $periodStart, ?DateTimeImmutable $periodEnd) {
-    if (!$periodStart || !$periodEnd) {
-        return [
-            'period_start' => $periodStart,
-            'period_end' => $periodEnd
-        ];
-    }
-
-    if ($periodEnd < $periodStart) {
-        $periodEnd = $periodStart;
-    }
-
-    return [
-        'period_start' => $periodStart,
-        'period_end' => $periodEnd
-    ];
-}
-
-function get_salary_period_info(array $salary, DateTimeImmutable $today) {
+function get_salary_payment_info(array $salary, array $payments, DateTimeImmutable $today) {
     $start = parse_date_value($salary['fecha_inicio']);
     $end = parse_date_value($salary['fecha_fin']);
     $tipo = $salary['tipo_pago'];
+    $paidCount = count($payments);
 
     if (!$start) {
         return [
-            'period_start' => null,
-            'period_end' => null,
-            'due_date' => null,
-            'next_due_date' => null
+            'payment_date' => null,
+            'pending_count' => 0,
+            'status' => 'finalizado'
         ];
     }
 
     if ($tipo === 'unico') {
-        $periodEnd = $end ?: $start;
-        $bounds = normalize_period_bounds($start, $periodEnd);
-
-        return [
-            'period_start' => $bounds['period_start'],
-            'period_end' => $bounds['period_end'],
-            'due_date' => $start,
-            'next_due_date' => $start
-        ];
-    }
-
-    $limit = $today;
-    if ($end && $end < $limit) {
-        $limit = $end;
-    }
-
-    if ($start > $limit) {
-        $previousDue = move_salary_interval($start, $tipo, -1);
-        $periodStart = $previousDue ?: $start;
-        $nextDue = add_salary_interval($start, $tipo);
-        $periodEnd = $nextDue ? $nextDue->modify('-1 day') : ($end ?: $start);
-
-        if ($end && $end < $periodEnd) {
-            $periodEnd = $end;
+        if ($paidCount > 0) {
+            return [
+                'payment_date' => null,
+                'pending_count' => 0,
+                'status' => 'finalizado'
+            ];
         }
 
-        $bounds = normalize_period_bounds($periodStart, $periodEnd);
+        $pendingCount = $start <= $today ? 1 : 0;
 
         return [
-            'period_start' => $bounds['period_start'],
-            'period_end' => $bounds['period_end'],
-            'due_date' => $start,
-            'next_due_date' => $start
+            'payment_date' => $start,
+            'pending_count' => $pendingCount,
+            'status' => $pendingCount > 0 ? 'pendiente' : 'al_dia'
         ];
     }
 
-    $currentDue = $start;
-    $nextDue = add_salary_interval($currentDue, $tipo);
+    $nextIndex = $paidCount;
+    $paymentDate = get_salary_payment_date($start, $tipo, $nextIndex);
 
-    while ($nextDue && $nextDue <= $limit) {
-        $currentDue = $nextDue;
-        $nextDue = add_salary_interval($currentDue, $tipo);
+    if (!$paymentDate || ($end && $paymentDate > $end)) {
+        return [
+            'payment_date' => null,
+            'pending_count' => 0,
+            'status' => 'finalizado'
+        ];
     }
 
-    $periodEnd = $nextDue ? $nextDue->modify('-1 day') : ($end ?: $currentDue);
-    $nextVisibleDue = $nextDue ?: $currentDue;
+    $pendingCount = 0;
+    $cursor = $paymentDate;
+    $cursorIndex = $nextIndex;
 
-    if ($end && $nextVisibleDue > $end) {
-        $nextVisibleDue = $currentDue;
+    while ($cursor && $cursor <= $today && (!$end || $cursor <= $end)) {
+        $pendingCount++;
+        $cursorIndex++;
+        $cursor = get_salary_payment_date($start, $tipo, $cursorIndex);
     }
-
-    $bounds = normalize_period_bounds($currentDue, $periodEnd);
 
     return [
-        'period_start' => $bounds['period_start'],
-        'period_end' => $bounds['period_end'],
-        'due_date' => $currentDue,
-        'next_due_date' => $nextVisibleDue
+        'payment_date' => $paymentDate,
+        'pending_count' => $pendingCount,
+        'status' => $pendingCount > 0 ? 'pendiente' : 'al_dia'
     ];
-}
-
-function payment_in_period(array $payments, ?DateTimeImmutable $periodStart, ?DateTimeImmutable $periodEnd) {
-    if (!$periodStart || !$periodEnd || !$payments) {
-        return false;
-    }
-
-    $startAt = $periodStart->setTime(0, 0, 0);
-    $endAt = $periodEnd->setTime(23, 59, 59);
-
-    foreach ($payments as $payment) {
-        try {
-            $paidAt = new DateTimeImmutable($payment['fecha_pago']);
-        } catch (Throwable $error) {
-            continue;
-        }
-
-        if ($paidAt >= $startAt && $paidAt <= $endAt) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 function require_salary_payload(array $body, $includeId = false) {
@@ -242,7 +177,7 @@ function require_salary_payload(array $body, $includeId = false) {
 
     $startDate = parse_date_value($fechaInicio);
     if (!$startDate) {
-        throw new Exception('La fecha de inicio no es válida.', 400);
+        throw new Exception('La fecha de pago no es válida.', 400);
     }
 
     $endDate = null;
@@ -404,16 +339,18 @@ if ($method === 'GET') {
     foreach ($items as $salary) {
         $salaryId = $salary['id'];
         $payments = $paymentsBySalary[$salaryId] ?? [];
-        $period = get_salary_period_info($salary, $today);
-        $paid = payment_in_period($payments, $period['period_start'], $period['period_end']);
+        $paymentInfo = get_salary_payment_info($salary, $payments, $today);
+        $pendingPayments = intval($paymentInfo['pending_count']);
+        $paymentDate = $paymentInfo['payment_date'];
 
-        if (!$paid) {
-            $pendingCount++;
-        }
+        $pendingCount += $pendingPayments;
 
         $salary['pagos_historicos'] = count($payments);
-        $salary['estado_periodo'] = $paid ? 'pagado' : 'pendiente';
-        $salary['proximo_pago'] = $period['next_due_date'] ? $period['next_due_date']->format('d/m/Y') : null;
+        $salary['pagos_pendientes'] = $pendingPayments;
+        $salary['estado_periodo'] = $paymentInfo['status'];
+        $salary['fecha_pago'] = $paymentDate ? $paymentDate->format('d/m/Y') : null;
+        $salary['fecha_pago_alerta'] = $pendingPayments > 0;
+        $salary['proximo_pago'] = $salary['fecha_pago'];
         $salary['fecha_inicio_formateada'] = format_date_br($salary['fecha_inicio']);
         $salary['fecha_fin_formateada'] = format_date_br($salary['fecha_fin']);
         $activeItems[] = $salary;
@@ -558,10 +495,10 @@ if ($method === 'POST') {
             }
 
             $payments = fetch_salary_history($conn, $salaryId);
-            $period = get_salary_period_info($salary, new DateTimeImmutable('today'));
+            $paymentInfo = get_salary_payment_info($salary, $payments, new DateTimeImmutable('today'));
 
-            if (payment_in_period($payments, $period['period_start'], $period['period_end'])) {
-                throw new Exception('Ese sueldo ya fue pagado en el período actual.', 400);
+            if (intval($paymentInfo['pending_count']) <= 0) {
+                throw new Exception('Ese sueldo no tiene pagos pendientes.', 400);
             }
 
             $amount = floatval($salary['monto']);
@@ -579,6 +516,10 @@ if ($method === 'POST') {
             $insertPayment->close();
 
             $observacion = 'Sueldo: ' . $salary['descripcion'];
+            if ($paymentInfo['payment_date']) {
+                $observacion .= ' (' . $paymentInfo['payment_date']->format('d/m/Y') . ')';
+            }
+
             $insertMovement = $conn->prepare('
                 INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
                 VALUES ("compra", NULL, 1, ?, ?)
@@ -608,7 +549,8 @@ if ($method === 'POST') {
 
             respond_json([
                 'ok' => true,
-                'sueldo_id' => $salaryId
+                'sueldo_id' => $salaryId,
+                'pagos_pendientes_previos' => intval($paymentInfo['pending_count'])
             ]);
         } catch (Throwable $error) {
             $conn->rollback();

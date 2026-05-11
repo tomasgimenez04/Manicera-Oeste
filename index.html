@@ -228,7 +228,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="sueldo-fecha-inicio">Inicio de pago</label>
+              <label for="sueldo-fecha-inicio">Fecha de pago</label>
               <input type="date" id="sueldo-fecha-inicio">
             </div>
             <div class="form-group">
@@ -245,7 +245,7 @@
         <article class="panel-card salary-summary-card">
           <div class="panel-heading">
             <h2>Resumen del período</h2>
-            <p>Seguimiento rápido de vencimientos y egresos por sueldos del mes actual.</p>
+            <p>Seguimiento rápido de pagos pendientes y egresos por sueldos del mes actual.</p>
           </div>
 
           <div class="salary-summary-grid">
@@ -268,7 +268,7 @@
       <article class="panel-card">
         <div class="panel-heading">
           <h2>Sueldos activos</h2>
-          <p>Administra vencimientos, pagos confirmados e historial de cada sueldo.</p>
+          <p>Administra fechas de pago, pagos confirmados e historial de cada sueldo.</p>
         </div>
 
         <div class="table-shell">
@@ -278,7 +278,7 @@
                 <th>Descripción</th>
                 <th>Monto</th>
                 <th>Tipo de pago</th>
-                <th>Próximo vencimiento</th>
+                <th>Fecha de pago</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -668,7 +668,7 @@
       <td data-field="descripcion"></td>
       <td data-field="monto"></td>
       <td data-field="tipo"></td>
-      <td data-field="proximo"></td>
+      <td data-field="fecha-pago"></td>
       <td data-field="estado"></td>
       <td data-field="acciones"></td>
     </tr>
@@ -830,7 +830,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="editar-sueldo-fecha-inicio">Inicio de pago</label>
+            <label for="editar-sueldo-fecha-inicio">Fecha de pago</label>
             <input type="date" id="editar-sueldo-fecha-inicio">
           </div>
           <div class="form-group">
