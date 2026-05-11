@@ -663,6 +663,24 @@ function isCuentaCorrienteFormItemValid(item) {
     return true;
 }
 
+function hasCuentaCorrienteFormItemData(item) {
+    if (!item) {
+        return false;
+    }
+
+    return Boolean(
+        Number(item.producto_id) ||
+        item.cantidad !== '' ||
+        item.precio_unitario !== ''
+    );
+}
+
+function getCuentaCorrienteInvalidDraftRows() {
+    return cuentaCorrienteItemsForm.filter((item) => {
+        return hasCuentaCorrienteFormItemData(item) && !isCuentaCorrienteFormItemValid(item);
+    });
+}
+
 function getCuentaCorrienteFormPayloadItems() {
     return cuentaCorrienteItemsForm
         .filter((item) => isCuentaCorrienteFormItemValid(item))
@@ -1910,6 +1928,7 @@ function actualizarCuentaCorrienteFormState() {
     const createBtn = document.getElementById('btn-crear-cuenta-corriente');
     const hint = document.getElementById('cc-form-hint');
     const payloadItems = getCuentaCorrienteFormPayloadItems();
+    const invalidRows = getCuentaCorrienteInvalidDraftRows();
     const total = payloadItems.reduce((sum, item) => sum + calcCuentaCorrienteItemSubtotal(item.cantidad, item.precio_unitario), 0);
 
     if (totalEl) {
@@ -1922,10 +1941,13 @@ function actualizarCuentaCorrienteFormState() {
 
     if (createBtn) {
         const hasClient = clientInput && clientInput.value.trim() !== '';
-        const isReady = hasClient && payloadItems.length > 0;
+        const isReady = hasClient && payloadItems.length > 0 && invalidRows.length === 0;
         createBtn.disabled = !isReady;
 
         if (hint) {
+            hint.textContent = invalidRows.length > 0
+                ? 'Completá o quitá las filas de productos incompletas para continuar.'
+                : 'Completá el cliente y agregá al menos un producto para continuar.';
             hint.classList.toggle('is-hidden', isReady);
         }
     }
@@ -2985,9 +3007,14 @@ async function registrar(tipo) {
         return;
     }
 
-    if (cantidad <= 0 || monto <= 0) {
-        showToast('Completa cantidad y monto.', 'error');
+    if (cantidad <= 0) {
+        showToast('Completa la cantidad.', 'error');
         return;
+    }
+
+    if (tipo === 'venta' && monto <= 0 && precioUnitario > 0) {
+        monto = Number((cantidad * precioUnitario).toFixed(2));
+        document.getElementById('v-monto').value = monto.toFixed(2);
     }
 
     if (usaCantidadEntera(unidadMedida) && !Number.isInteger(cantidad)) {
@@ -2995,9 +3022,9 @@ async function registrar(tipo) {
         return;
     }
 
-    if (tipo === 'venta' && monto <= 0 && precioUnitario > 0) {
-        monto = Number((cantidad * precioUnitario).toFixed(2));
-        document.getElementById('v-monto').value = monto.toFixed(2);
+    if (monto <= 0) {
+        showToast('Completa el monto.', 'error');
+        return;
     }
 
     try {
@@ -3144,10 +3171,16 @@ async function crearCuentaCorriente() {
     const dueDateInput = document.getElementById('cc-fecha-vencimiento');
     const cliente = clienteInput ? clienteInput.value.trim() : '';
     const fecha_vencimiento = dueDateInput ? dueDateInput.value.trim() : '';
+    const invalidRows = getCuentaCorrienteInvalidDraftRows();
     const items = getCuentaCorrienteFormPayloadItems();
 
     if (!cliente) {
         showToast('Escribí el nombre del cliente.', 'error');
+        return;
+    }
+
+    if (invalidRows.length) {
+        showToast('Completá o quitá las filas de productos incompletas.', 'error');
         return;
     }
 

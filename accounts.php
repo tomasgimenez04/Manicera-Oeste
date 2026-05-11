@@ -659,26 +659,63 @@ if ($method === 'DELETE') {
         respond_json(['error' => 'ID de cuenta inválido.'], 400);
     }
 
-    $payments = get_account_payment_history($conn, $cuentaId);
-    if ($payments) {
-        respond_json(['error' => 'No se puede eliminar una cuenta con pagos registrados.'], 400);
-    }
+    try {
+        $conn->begin_transaction();
 
-    $stmt = $conn->prepare('UPDATE cuentas_corrientes SET activo = 0 WHERE id = ? AND activo = 1');
-    $stmt->bind_param('i', $cuentaId);
+        $cuenta = get_account_row($conn, $cuentaId, true);
+        if (!$cuenta) {
+            throw new Exception('La cuenta corriente no existe o ya fue eliminada.', 404);
+        }
 
-    if (!$stmt->execute()) {
+        $payments = get_account_payment_history($conn, $cuentaId);
+        if ($payments) {
+            throw new Exception('No se puede eliminar una cuenta con pagos registrados.', 400);
+        }
+
+        $itemsByCuenta = get_account_items($conn, [$cuentaId]);
+        $items = $itemsByCuenta[$cuentaId] ?? [];
+        $observacion = 'Anulacion cuenta corriente: ' . $cuenta['cliente'];
+
+        foreach ($items as $item) {
+            $movementStmt = $conn->prepare('
+                INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
+                VALUES ("compra", ?, ?, 0, ?)
+            ');
+            $movementStmt->bind_param('ids', $item['producto_id'], $item['cantidad'], $observacion);
+
+            if (!$movementStmt->execute()) {
+                $movementStmt->close();
+                throw new Exception('No se pudo revertir el stock de la cuenta corriente.', 500);
+            }
+
+            $movementStmt->close();
+        }
+
+        $stmt = $conn->prepare('UPDATE cuentas_corrientes SET activo = 0 WHERE id = ? AND activo = 1');
+        $stmt->bind_param('i', $cuentaId);
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            throw new Exception('No se pudo desactivar la cuenta corriente.', 500);
+        }
+
+        if ($stmt->affected_rows === 0) {
+            $stmt->close();
+            throw new Exception('La cuenta corriente no existe o ya fue eliminada.', 404);
+        }
+
         $stmt->close();
-        respond_json(['error' => 'No se pudo desactivar la cuenta corriente.'], 500);
-    }
+        $conn->commit();
+        respond_json(['ok' => true]);
+    } catch (Throwable $error) {
+        $conn->rollback();
+        $status = intval($error->getCode());
+        if ($status < 400 || $status > 599) {
+            $status = 500;
+        }
 
-    if ($stmt->affected_rows === 0) {
-        $stmt->close();
-        respond_json(['error' => 'La cuenta corriente no existe o ya fue eliminada.'], 404);
+        respond_json(['error' => $error->getMessage()], $status);
     }
-
-    $stmt->close();
-    respond_json(['ok' => true]);
 }
 
 respond_json(['error' => 'Método no permitido.'], 405);
