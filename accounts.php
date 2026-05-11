@@ -30,8 +30,19 @@ function parse_date_value($value) {
         return null;
     }
 
-    $date = DateTimeImmutable::createFromFormat('Y-m-d', $value);
-    return $date ?: null;
+    $value = (string) $value;
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return null;
+    }
+
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    $errors = DateTimeImmutable::getLastErrors();
+
+    if (!$date || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+        return null;
+    }
+
+    return $date->format('Y-m-d') === $value ? $date : null;
 }
 
 function format_date_br($value) {

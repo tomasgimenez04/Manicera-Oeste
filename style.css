@@ -1238,7 +1238,12 @@ textarea:focus {
 }
 
 .salary-summary-value--primary {
-  color: var(--text-primary);
+  color: var(--red-dark);
+}
+
+.salary-summary-item:has(.salary-summary-value--primary) {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.92), rgba(255, 255, 255, 1));
 }
 
 .salary-table th:last-child,
