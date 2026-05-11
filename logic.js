@@ -2730,6 +2730,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryTrigger = document.getElementById('nav-inventario-trigger');
     if (inventoryTrigger) {
         inventoryTrigger.addEventListener('click', () => {
+            // Remover active de todos los botones principales excepto el trigger de inventario
+            document.querySelectorAll('.nav-btn').forEach((navBtn) => {
+                if (!navBtn.classList.contains('nav-dropdown__trigger')) {
+                    navBtn.classList.remove('active');
+                }
+            });
             toggleInventoryDropdown();
         });
     }
@@ -2941,7 +2947,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // Carga de datos y acciones principales
 function showSection(id, btn) {
     document.querySelectorAll('.section').forEach((section) => section.classList.remove('active'));
-    document.querySelectorAll('.nav-btn, .nav-dropdown__item').forEach((navBtn) => navBtn.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach((navBtn) => {
+        if (!navBtn.classList.contains('nav-dropdown__trigger')) {
+            navBtn.classList.remove('active');
+        }
+    });
+    document.querySelectorAll('.nav-dropdown__item').forEach((navBtn) => navBtn.classList.remove('active'));
     document.querySelectorAll('.nav-dropdown').forEach((dropdown) => dropdown.classList.remove('is-active'));
 
     const section = document.getElementById(id);
