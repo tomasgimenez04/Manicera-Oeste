@@ -1102,6 +1102,15 @@ textarea:focus {
   font-size: 15px;
   color: var(--text);
   vertical-align: middle;
+  max-width: 400px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.movements-table td[data-field="producto"] {
+  max-width: none;
+  min-width: 200px;
+  white-space: normal;
 }
 
 #inicio .movements-table td:last-child,

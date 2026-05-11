@@ -208,7 +208,17 @@ function getToastVariantForTipo(tipo) {
 
 function getMovimientoDisplayName(item) {
     if (item && item.producto) {
-        return formatearNombreProducto(item.producto, item.codigo);
+        let displayText = item.producto;
+        
+        if (item.codigo) {
+            displayText += ` (${item.codigo})`;
+        }
+        
+        if (item.observacion && String(item.observacion).trim()) {
+            displayText += ` - ${item.observacion}`;
+        }
+        
+        return displayText;
     }
 
     if (item && item.observacion) {
@@ -216,6 +226,10 @@ function getMovimientoDisplayName(item) {
 
         if (normalizarTexto(observacion).startsWith('pago cuenta corriente:')) {
             return observacion.replace(/^Pago cuenta corriente:/i, 'Cobro de cuenta corriente:');
+        }
+
+        if (normalizarTexto(observacion).startsWith('sueldo:')) {
+            return observacion.replace(/^Sueldo:/i, 'Sueldo:').replace(/\s*\([^)]*\)\s*$/, '');
         }
 
         return observacion;
