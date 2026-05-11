@@ -336,7 +336,6 @@ if ($method === 'GET') {
     $monthlyStmt->close();
 
     $pendientesTotal = 0.0;
-    $parcialesTotal = 0.0;
     $responseItems = [];
 
     foreach ($cuentas as $cuenta) {
@@ -344,10 +343,8 @@ if ($method === 'GET') {
         $saldoRestante = max(round($cuenta['monto_total'] - $cuenta['monto_pagado'], 2), 0);
         $estado = get_account_state($cuenta['monto_total'], $cuenta['monto_pagado'], $cuenta['estado']);
 
-        if ($estado === 'pendiente') {
+        if ($estado === 'pendiente' || $estado === 'parcial') {
             $pendientesTotal += $saldoRestante;
-        } elseif ($estado === 'parcial') {
-            $parcialesTotal += $saldoRestante;
         }
 
         $responseItems[] = [
@@ -371,7 +368,6 @@ if ($method === 'GET') {
         'items' => $responseItems,
         'resumen' => [
             'pendientes' => round($pendientesTotal, 2),
-            'parciales' => round($parcialesTotal, 2),
             'cobrado_mes' => round(floatval($monthlyRow['total_mes'] ?? 0), 2)
         ]
     ]);
@@ -591,7 +587,7 @@ if ($method === 'POST') {
 
             $updateStmt->close();
 
-            $movementObservation = 'Pago cuenta corriente: ' . $cuenta['cliente'];
+            $movementObservation = 'Cobro de cuenta corriente: ' . $cuenta['cliente'];
             $movementStmt = $conn->prepare('
                 INSERT INTO movimientos (tipo, producto_id, cantidad, monto, observacion)
                 VALUES ("venta", NULL, 1, ?, ?)

@@ -212,7 +212,13 @@ function getMovimientoDisplayName(item) {
     }
 
     if (item && item.observacion) {
-        return item.observacion;
+        const observacion = String(item.observacion);
+
+        if (normalizarTexto(observacion).startsWith('pago cuenta corriente:')) {
+            return observacion.replace(/^Pago cuenta corriente:/i, 'Cobro de cuenta corriente:');
+        }
+
+        return observacion;
     }
 
     return 'Sin detalle';
@@ -672,7 +678,12 @@ function isCuentaCorrienteMovimiento(item) {
 }
 
 function isCuentaCorrientePagoMovimiento(item) {
-    return item && normalizarTexto(item.observacion).startsWith('pago cuenta corriente:');
+    if (!item || !item.observacion) {
+        return false;
+    }
+
+    const observacion = normalizarTexto(item.observacion);
+    return observacion.startsWith('pago cuenta corriente:') || observacion.startsWith('cobro de cuenta corriente:');
 }
 
 function resetVisibleCount(key) {
@@ -3218,7 +3229,7 @@ async function registrarPagoCuentaCorriente() {
             await cargarBalance();
         }
 
-        showToast('Pago registrado en cuenta corriente.', 'venta');
+        showToast('Cobro de cuenta corriente registrado.', 'venta');
     } catch (error) {
         console.error(error);
         showToast(getErrorMessage(error, 'Error al registrar el pago.'), 'error');
