@@ -640,7 +640,8 @@ if ($method === 'POST') {
 
         $stmt = $conn->prepare('
             UPDATE cuentas_corrientes
-            SET estado = "archivada"
+            SET estado = "archivada", 
+                activo = 0
             WHERE id = ? AND activo = 1
         ');
         $stmt->bind_param('i', $cuentaId);
